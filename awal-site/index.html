@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWAL Minigames — Get Your ESL Students Talking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <nav>
+    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;" onmouseenter="showGamesDrop()" onmouseleave="scheduleHideGamesDrop()"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL<span class="cb-logo-badge" onclick="event.preventDefault(); event.stopPropagation(); window.location.href='games.html';">MINIGAMES</span></a>
+    <div class="nav-links">
+      <a href="index.html#how">How it works</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="about.html">About</a>
+      <a href="index.html#faq">FAQ</a>
+    </div>
+    <a href="login.html" class="btn btn-primary" style="text-decoration:none;">Start Free</a>
+  </nav>
+
+  <div class="games-drop" id="games-drop" onmouseenter="cancelHideGamesDrop()" onmouseleave="scheduleHideGamesDrop()">
+    <div class="games-drop-track" id="games-drop-track"></div>
+  </div>
+</header>
+
+<div id="page-home" class="page">
+<div class="home-carousel" id="home-carousel">
+  <div class="home-carousel-track" id="home-carousel-track"></div>
+</div>
+<!-- HERO -->
+<section class="hero hero-loud">
+  <div class="hero-blob hb1"></div>
+  <div class="hero-blob hb2"></div>
+  <div class="hero-blob hb3"></div>
+
+  <div class="wrap">
+    <div class="ticker-strip">
+      <span>🔥 2,300+ trial games played this week</span>
+      <span class="tdot">•</span>
+      <span>⭐ 4.9/5 average fun rating</span>
+      <span class="tdot">•</span>
+      <span>🟢 214 teachers online right now</span>
+    </div>
+  </div>
+
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow"><span class="sw"></span> Built for online ESL teachers</div>
+      <h1>Get your students <span class="hl-wrap">talking<svg class="hl-underline" viewBox="0 0 220 18" preserveAspectRatio="none"><path d="M2 12 Q 55 2, 110 10 T 218 8" stroke="#C837E8" stroke-width="7" fill="none" stroke-linecap="round"/></svg></span> — not you.</h1>
+      <p class="hero-sub">Live multiplayer ESL games your students actually beg to play. Pick a game, share a link, watch them talk. Zero prep, zero downloads.</p>
+      <div class="hero-ctas">
+        <button class="btn btn-primary btn-glow" onclick="openGuestLobby()">Try a Free Room Now 🚀</button>
+        <button class="btn btn-ghost">▶ Watch 60-Second Demo</button>
+      </div>
+      <p class="micro">No sign-up required<span class="sep">•</span>1 free guest trial game<span class="sep">•</span>Instant link for your student</p>
+
+      <div class="stat-chip-row">
+        <div class="stat-chip"><span class="sc-num">1</span> free game, zero friction</div>
+        <div class="stat-chip"><span class="sc-num">10s</span> to your first room</div>
+        <div class="stat-chip"><span class="sc-num">5</span> credits/week once you sign up</div>
+      </div>
+    </div>
+
+    <div class="room-mock-wrap">
+      <div class="ticket-badge">🎟️ 1 FREE GAME</div>
+      <div class="float-sticker fs1">🎉</div>
+      <div class="float-sticker fs2">✨</div>
+      <div class="float-sticker fs3">🔥</div>
+      <div class="room-mock">
+        <div class="speech-float sf1">"Is it a woman?" 🗣️</div>
+        <div class="speech-float sf2">+1 speaking turn</div>
+        <div class="speech-float sf3">🔥 4 guesses left</div>
+        <div class="room-topbar">
+          <div class="room-dots"><span></span><span></span><span></span></div>
+          <div class="room-code mono">room/8G-4K2</div>
+        </div>
+        <div class="room-canvas">
+          <div class="avatar-row">
+            <div class="avatar a1 bounce-1">M</div>
+            <div class="avatar a2 bounce-2">S</div>
+            <div class="avatar a3 bounce-3">J</div>
+            <div class="avatar a4 bounce-4">A</div>
+          </div>
+          <div class="prompt-card">
+            <div class="prompt-label">Guess Who — Round 3</div>
+            <div class="prompt-q">Describe your character. Go!</div>
+          </div>
+          <div class="bubble coral">🎙️ Mateo is speaking…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GROWTH LOOP STRIP -->
+<section class="loop-strip">
+  <div class="wrap">
+    <div class="loop-track">
+      <div class="loop-step">
+        <div class="loop-icon" style="background:#FFE0DD;">🎮</div>
+        <p class="loop-label">Play free</p>
+      </div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-step">
+        <div class="loop-icon" style="background:#FFE7B8;">😍</div>
+        <p class="loop-label">Love it</p>
+      </div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-step">
+        <div class="loop-icon" style="background:#D9F5F1;">⚡</div>
+        <p class="loop-label">Sign up free</p>
+      </div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-step">
+        <div class="loop-icon" style="background:#EAE3FF;">🔥</div>
+        <p class="loop-label">Max your credits</p>
+      </div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-step">
+        <div class="loop-icon" style="background:#DCEEFF;">🚀</div>
+        <p class="loop-label">Go unlimited</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM / AGITATION -->
+<section class="problem">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="sw" style="background:var(--coral)"></span> We get it</div>
+      <h2>You didn't become a teacher to talk to a muted screen.</h2>
+      <p>If any of this sounds familiar, AWAL was built for you.</p>
+    </div>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="pain-icon"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v3a3 3 0 0 0 5.1 2.1M12 4a3 3 0 0 1 3 3v2M12 17v3M8 20h8"/><path d="M4 4l16 16"/></svg></div>
+        <h3>The silent student problem</h3>
+        <p class="desc">Cameras off. Mics muted. One-word answers. You're doing 90% of the talking in a language-speaking class.</p>
+        <div class="fix-row"><span>🎮</span><span><b>The fix:</b> game mechanics force students to describe, guess, and react out loud — speaking becomes the point of the game.</span></div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="10" rx="1.5"/><path d="M8 19h8"/></svg></div>
+        <h3>The boring slide deck trap</h3>
+        <p class="desc">Static PowerPoints and recycled worksheets don't hold attention — especially with kids and teens.</p>
+        <div class="fix-row"><span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg></span><span><b>The fix:</b> live multiplayer games with movement, sound, and competition students actually want to stay in.</span></div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>
+        <h3>The endless prep time drain</h3>
+        <p class="desc">You spend more time building materials at 11pm than actually teaching the next day.</p>
+        <div class="fix-row"><span>⚡</span><span><b>The fix:</b> AI-generated vocabulary and instant quiz banks — a full lesson ready in under 60 seconds.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="sw"></span> Pick your weapon</div>
+      <h2>9 games. Every level, A1 to C2. All ridiculously fun.</h2>
+      <p>These aren't worksheets with sound effects — they're actual games students ask to play again.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-card fc1">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12S5.6 5.5 12 5.5 22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg></div>
+        <h3>Guess Who (ESL Edition)</h3>
+        <div class="feat-tag">50+ characters. Zero repeat games.</div>
+        <p>Every round pulls from a pool of 50+ unique avatars, so students have to actually describe to win. Drills adjectives and yes/no questions without feeling like a drill.</p>
+      </div>
+      <div class="feat-card fc2">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4.2L15.8 5 19 8.2 8.2 19 4 20Z"/><path d="M13.3 6.7l3 3"/></svg></div>
+        <h3>Multiplayer Pictionary</h3>
+        <div class="feat-tag">One word. Six players. Total chaos.</div>
+        <p>A fast drawing engine for 2–6 players with AI-generated vocabulary matched to your topic. Students shout guesses in real time — vocabulary review, but loud.</p>
+      </div>
+      <div class="feat-card fc3" style="position:relative; cursor:pointer;" onclick="window.location.href='games.html'">
+        <span style="position:absolute; top:-10px; right:16px; background:var(--coral); color:white; font-size:10.5px; font-weight:800; padding:4px 10px; border-radius:100px; font-family:'Space Mono';">PLAY NOW</span>
+        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21h10M6 21V3h10v4"/><circle cx="16" cy="9.3" r="2.3"/></svg></div>
+        <h3>Interactive Hangman</h3>
+        <div class="feat-tag">A classic, rebuilt for speaking.</div>
+        <p>Load your own list or generate an AI word bank on any topic in seconds. Students call out letters aloud — perfect for warm-ups or reviewing last week's unit.</p>
+      </div>
+      <div class="feat-card fc4">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v3.2a5 5 0 0 1-10 0V4Z"/><path d="M7 5.2H4.3v1.8a3 3 0 0 0 3 3M17 5.2h2.7V7a3 3 0 0 1-3 3"/><path d="M12 12.2V16M9.3 20h5.4M10 16h4v4h-4z"/></svg></div>
+        <h3>Team Trivia</h3>
+        <div class="feat-tag">The Baamboozle alternative that builds itself.</div>
+        <p>Pre-made trivia sets or an instant AI quiz calibrated A1–C2. Teams debate answers out loud before locking them in — a game show with built-in speaking practice.</p>
+      </div>
+      <div class="feat-card fc5">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6.2 6.2h3.6M6.2 9.4h3.6"/><circle cx="16.5" cy="16.5" r="4"/><path d="M19.6 19.6L22 22"/></svg></div>
+        <h3>Word Search</h3>
+        <div class="feat-tag">Vocabulary consolidation, together.</div>
+        <p>Real-time collaborative word hunts where the whole class searches one shared board at once. Great for cool-downs or filling the last 5 minutes with purpose.</p>
+      </div>
+      <div class="feat-card fc7">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg></div>
+        <h3>Crossword</h3>
+        <div class="feat-tag">Clues that make them explain themselves.</div>
+        <p>Auto-generated grids from any vocabulary list or AI topic prompt. Solving a clue out loud means defining, describing, and negotiating with a partner — not just filling boxes.</p>
+      </div>
+      <div class="feat-card fc8">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 0 1 13-5"/><path d="M19.5 12a7.5 7.5 0 0 1-13 5"/><path d="M17.5 3.2V7h-3.8M6.5 20.8V17h3.8"/></svg></div>
+        <h3>Spin the Wheel</h3>
+        <div class="feat-tag">Random prompts. Zero awkward silence.</div>
+        <p>Spin for a question, topic, or challenge and the student has to answer on the spot. Perfect icebreaker or filler round — nobody gets to opt out of the spin.</p>
+      </div>
+      <div class="feat-card fc9">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9.5L5 20v-4H4V5Z"/><path d="M10.3 9.6a1.8 1.8 0 1 1 2.6 1.6c-.8.4-1.1.8-1.1 1.6"/><circle cx="12" cy="14.7" r="0.15" fill="currentColor" stroke="none"/></svg></div>
+        <h3>Two Truths and One Lie</h3>
+        <div class="feat-tag">Classic icebreaker, built for speaking.</div>
+        <p>Students submit three statements, the class votes and questions them to find the lie. Naturally drills question forms and gets even shy students talking to defend their story.</p>
+      </div>
+      <div class="feat-card fc6">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="12" rx="1.5"/><path d="M8 20l4-4 4 4M12 16.5V20"/></svg></div>
+        <h3>Interactive Whiteboard</h3>
+        <div class="feat-tag">Your always-on explainer tool.</div>
+        <p>A shared canvas ready the second you need to sketch a grammar point. Included free on every plan — no separate app, no screen-share juggling.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="sw" style="background:var(--sunshine)"></span> From login to live game</div>
+      <h2>Under 60 seconds. Really.</h2>
+      <p>No setup screens. No configuration headaches.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-bubble">STEP 1</div>
+        <h3>Pick your game</h3>
+        <p>Choose Guess Who, Pictionary, Hangman, Trivia, or Word Puzzles. Use a pre-made set or let AI generate vocabulary for your exact topic and level.</p>
+      </div>
+      <div class="step">
+        <div class="step-bubble">STEP 2</div>
+        <h3>Generate your room</h3>
+        <p>One click creates a live game room with a unique code and shareable link. That's the whole setup.</p>
+      </div>
+      <div class="step">
+        <div class="step-bubble">STEP 3</div>
+        <h3>Invite & play</h3>
+        <p>Send the code or link — students join instantly in their browser, no account needed. The game starts, the talking begins.</p>
+      </div>
+    </div>
+    <div class="how-cta">
+      <button class="btn btn-primary">🚀 Create Your First Room Free</button>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="sw"></span> Pricing</div>
+      <h2>Simple pricing. No surprises.</h2>
+      <p>Less than the cost of one coffee gets you unlimited classroom games, all month long.</p>
+    </div>
+    <div class="price-grid">
+      <div class="price-card">
+        <div class="plan-name">Free</div>
+        <div class="plan-price">€0</div>
+        <div class="plan-period">forever</div>
+        <div class="plan-note">Perfect for trying AWAL risk-free</div>
+        <ul class="plan-feats">
+          <li><span class="check">✓</span> 5 game credits / week (20/mo max)</li>
+          <li><span class="check">✓</span> Access to all 6 game types</li>
+          <li><span class="check">✓</span> AI-generated vocabulary & quizzes</li>
+          <li><span class="check">✓</span> Whiteboard (watermarked)</li>
+          <li><span class="check">✓</span> Students join free, no account</li>
+        </ul>
+        <button class="btn btn-ghost btn-block">Start Free</button>
+      </div>
+
+      <div class="price-card pop">
+        <div class="plan-name">Monthly Unlimited</div>
+        <div class="plan-price">€3</div>
+        <div class="plan-period">per month</div>
+        <div class="plan-note">For teachers running regular classes</div>
+        <ul class="plan-feats">
+          <li><span class="check">✓</span> Unlimited game sessions</li>
+          <li><span class="check">✓</span> Access to all 6 game types</li>
+          <li><span class="check">✓</span> Unlimited AI vocabulary & quizzes</li>
+          <li><span class="check">✓</span> Whiteboard (watermarked)</li>
+          <li><span class="check">✓</span> Cancel anytime</li>
+        </ul>
+        <button class="btn btn-primary btn-block">Go Unlimited Monthly</button>
+      </div>
+
+      <div class="price-card" style="position:relative; border-color:var(--sunshine); border-width:2px;">
+        <div class="price-badge">🔥 Best value</div>
+        <div class="plan-name">Annual Unlimited</div>
+        <div class="plan-price">€2<span style="font-size:16px; font-weight:600;">/mo</span></div>
+        <div class="plan-period">€24 billed yearly</div>
+        <div class="plan-note">For teachers all-in on engagement</div>
+        <ul class="plan-feats">
+          <li><span class="check">✓</span> Everything in Monthly Unlimited</li>
+          <li><span class="check">✓</span> Save 33% vs. monthly</li>
+          <li><span class="check">✓</span> Watermark-free whiteboard</li>
+          <li><span class="check">✓</span> Early access to new games</li>
+          <li><span class="check">✓</span> Price locked for 12 months</li>
+        </ul>
+        <button class="btn btn-dark btn-block">Get Annual — €2/mo</button>
+      </div>
+    </div>
+    <p class="price-foot">All plans include unlimited students per room and browser-based play on any device. Prices in EUR, taxes may apply.</p>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section class="roadmap">
+  <div class="wrap">
+    <div class="roadmap-box">
+      <div class="roadmap-head">
+        <div class="bubble light" style="margin-bottom:16px;">🚀 What's next</div>
+        <h2>Built for the future of ESL teaching.</h2>
+        <p>AWAL is just getting started — we're building toward an AI co-pilot for every classroom, not just for prep, but for real-time insight.</p>
+      </div>
+      <div class="roadmap-grid">
+        <div class="road-item">
+          <div class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="10" rx="2"/><path d="M12 8V5M9 5h6"/><circle cx="9.5" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="13" r="1" fill="currentColor" stroke="none"/><path d="M9 17h6"/></svg></div>
+          <h4>AI Lesson Assistant</h4>
+          <p>Auto-generate full game-based lesson plans from any topic or textbook unit.</p>
+        </div>
+        <div class="road-item">
+          <div class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v14M4 20h16"/></svg></div>
+          <h4>Classroom Analytics</h4>
+          <p>Track student speaking time, vocabulary retention, and participation over time.</p>
+        </div>
+        <div class="road-item">
+          <div class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg></div>
+          <h4>Expanding Game Library</h4>
+          <p>New formats added regularly, voted on by the AWAL teacher community.</p>
+        </div>
+        <div class="road-item">
+          <div class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.8 5.8 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.8-3.8-9S9.5 5.5 12 3Z"/></svg></div>
+          <h4>Academy Mode</h4>
+          <p>Manage multiple classes and co-teachers from one shared dashboard.</p>
+        </div>
+      </div>
+      <div class="roadmap-foot">
+        <p>Subscribers get every new feature automatically, at no extra cost.</p>
+        <button class="btn btn-ghost btn-sm" style="border-color:rgba(251,247,240,0.4); color:var(--chalk);">💬 Suggest a game</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq" id="faq">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="sw"></span> FAQ</div>
+      <h2>Questions, answered.</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item open">
+        <div class="faq-q" onclick="toggleFaq(this)">How do game credits actually work? <span class="plus">+</span></div>
+        <div class="faq-a">Each time you launch a live game session, it uses 1 credit — no matter how many students join or how long it runs. Free plan users get 5 credits every week — up to 20 per month — refreshed automatically. Unlimited plan users never think about credits again.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Do my students need to create an account? <span class="plus">+</span></div>
+        <div class="faq-a">No. Students click your invite link or enter your room code in their browser — no sign-up, no password, no download. Under 10 seconds to join.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">What devices and browsers does AWAL work on? <span class="plus">+</span></div>
+        <div class="faq-a">AWAL runs entirely in the browser — laptop, Chromebook, tablet, or smartphone, no installs. Chrome, Edge, or Safari for the smoothest experience.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">How does the AI vocabulary generation work? <span class="plus">+</span></div>
+        <div class="faq-a">Type a topic and pick a CEFR level from A1 to C2 — AWAL instantly generates a matched word bank, quiz, or prompt list. Edit before you start, or save it for later.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Can I use it for 1-on-1 and group classes? <span class="plus">+</span></div>
+        <div class="faq-a">Yes — every game supports 1 up to 6 players in the same room, so it works equally well for private tutoring and small group or academy classes.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-cta">
+  <div class="wrap">
+    <h2>Stop presenting.<br>Start playing.</h2>
+    <p class="hero-sub">One free room, zero sign-up, students talking in under a minute. See for yourself.</p>
+    <button class="btn btn-dark btn-glow" onclick="openGuestLobby()">Try a Free Room Now 🚀</button>
+    <span class="micro">No sign-up required • 1 free guest trial game • Instant link for your student</span>
+  </div>
+</section>
+</div>
+
+
+<footer>
+  <div class="wrap" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; width:100%;">
+    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL</a>
+    <div>© 2026 AWAL. Made for teachers who'd rather listen than lecture.</div>
+  </div>
+</footer>
+
+
+<div id="guest-flow-overlay" style="display:none; position:fixed; inset:0; background:var(--chalk); z-index:70; overflow-y:auto;">
+  <div style="max-width:1180px; margin:0 auto; padding:24px 32px 0;">
+    <button onclick="closeGuestFlow()" style="background:none; border:2px solid var(--ink); border-radius:100px; padding:8px 18px; font-weight:700; font-size:13px; cursor:pointer; font-family:'Space Grotesk';">✕ Close</button>
+  </div>
+  <div id="page-guest-lobby" class="page">
+  <section style="padding:90px 0;">
+    <div class="wrap">
+      <div class="lobby-head">
+        <h2>Pick your free trial game</h2>
+        <p>One game, on us. No account needed to try it.</p>
+      </div>
+      <div class="game-grid">
+        <div class="game-pick" onclick="selectGuestGame('guess-who')">
+          <div class="gp-icon" style="background:#FFE7B8;">🕵️</div>
+          <div class="gp-name">Guess Who</div>
+        </div>
+        <div class="game-pick" onclick="selectGuestGame('pictionary')">
+          <div class="gp-icon" style="background:#D9F5F1;">🎨</div>
+          <div class="gp-name">Pictionary</div>
+        </div>
+        <div class="game-pick" onclick="selectGuestGame('hangman')">
+          <div class="gp-icon" style="background:#FFE0DD;">💀</div>
+          <div class="gp-name">Hangman</div>
+        </div>
+        <div class="game-pick" onclick="selectGuestGame('impostor')">
+          <div class="gp-icon" style="background:#EAE3FF;">🎭</div>
+          <div class="gp-name">The Impostor</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+
+  <div id="page-guest-room" class="page">
+  <div class="guest-bar">
+    <div class="wrap guest-bar-inner">
+      <span class="guest-dot" id="guest-dot"></span>
+      <span class="guest-bar-text" id="guest-bar-text">GUEST MODE: 1 / 1 Free Trial Game Active</span>
+      <span class="guest-bar-cta">Sign up for 5 credits/month →</span>
+    </div>
+  </div>
+  <section style="padding:64px 0;">
+    <div class="wrap">
+      <div class="room-card">
+        <div class="room-card-head">
+          <div class="rc-icon" id="room-icon">🕵️</div>
+          <div>
+            <h3 id="room-game-name">Guess Who</h3>
+            <p>Your guest room is live</p>
+          </div>
+        </div>
+
+        <div class="code-box">
+          <div class="cb-label">Room code</div>
+          <div class="cb-code" id="room-code">0000</div>
+        </div>
+
+        <div class="copy-field-label">Student link</div>
+        <div class="copy-field">
+          <span id="room-link" class="mono">https://chatterboxgames.app/join/0000</span>
+          <button onclick="copyGuestLink()" id="copy-btn">Copy</button>
+        </div>
+
+        <div class="status-row">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="status-text">Waiting for student to join…</span>
+        </div>
+
+        <button class="demo-join-btn" id="simulate-join-btn" onclick="simulateGuestJoin()">(Demo) Simulate student joining</button>
+
+        <button class="btn btn-dark btn-block" onclick="endGuestTrial()">Finish trial game</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+
+  <div id="page-guest-done" class="page">
+  <div class="guest-done">
+    <div class="emoji">🎉</div>
+    <h1 id="guest-done-heading">Welcome to AWAL!</h1>
+    <p>Your account is ready with <span class="credit-highlight">5 free game credits</span> this month.</p>
+    <button class="btn btn-primary" onclick="closeGuestFlow()">Explore AWAL</button>
+  </div>
+</div>
+
+
+</div>
+
+<div class="modal-overlay" id="signup-modal">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeSignupModal()" aria-label="Close">✕</button>
+    <h2>Enjoyed your trial game?</h2>
+    <p>Sign up in 10 seconds to unlock 5 free monthly game credits + save your room settings.</p>
+
+    <button class="btn btn-outline btn-block" onclick="googleGuestSignUp()" style="background:white; border:3px solid var(--ink); color:var(--ink); width:100%;">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" style="vertical-align:middle; margin-right:6px;">
+        <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.62z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.33A9 9 0 0 0 9 18z"/>
+        <path fill="#FBBC05" d="M3.96 10.71a5.4 5.4 0 0 1 0-3.42V4.96H.96a9 9 0 0 0 0 8.08l3-2.33z"/>
+        <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.96l3 2.33C4.67 5.16 6.66 3.58 9 3.58z"/>
+      </svg>
+      Sign up with Google
+    </button>
+
+    <div class="modal-divider">OR</div>
+
+    <form id="guest-signup-form" novalidate onsubmit="handleGuestSignUp(event)">
+      <div class="mfield" id="mfield-name">
+        <label>Full name</label>
+        <input type="text" id="minput-name" placeholder="Jane Rivera">
+        <div class="mfield-error" id="merror-name" style="display:none;"></div>
+      </div>
+      <div class="mfield" id="mfield-email">
+        <label>Email address</label>
+        <input type="email" id="minput-email" placeholder="you@school.com">
+        <div class="mfield-error" id="merror-email" style="display:none;"></div>
+      </div>
+      <div class="mfield" id="mfield-password">
+        <label>Password</label>
+        <input type="password" id="minput-password" placeholder="Minimum 8 characters">
+        <div class="mfield-error" id="merror-password" style="display:none;"></div>
+      </div>
+
+      <label class="mcheck-row">
+        <input type="checkbox" id="minput-terms">
+        <span>I agree to the <a href="terms.html">Terms &amp; Conditions</a> and <a href="terms.html">Privacy Policy</a>.</span>
+      </label>
+      <div class="mfield-error" id="merror-terms" style="display:none; margin:-10px 0 14px;"></div>
+
+      <label class="mcheck-row">
+        <input type="checkbox" id="minput-marketing" checked>
+        <span>Send me free weekly ESL game ideas &amp; updates.</span>
+      </label>
+
+      <button type="submit" class="btn btn-primary btn-block" id="guest-submit-btn" style="margin-top:8px;">Create Free Account (Get 5 Credits/mo)</button>
+    </form>
+  </div>
+</div>
+
+
+
+<script src="main.js"></script>
+<script src="guest-flow.js"></script>
+</body>
+</html>

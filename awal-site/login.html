@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log in — AWAL Minigames</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="page-login" class="page">
+<div class="shell">
+  <div class="form-panel">
+    <a href="index.html" class="logo"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL</a>
+
+    <div class="form-center">
+      <div class="tabs">
+        <button class="active" onclick="setTab(this,'login')">Log in</button>
+        <button onclick="setTab(this,'signup')">Sign up</button>
+      </div>
+
+      <div id="login-form">
+        <h1>Welcome back</h1>
+        <p class="form-sub">Log in to jump into your next game room.</p>
+
+        <div class="field">
+          <label for="l-email">Email</label>
+          <input type="email" id="l-email" placeholder="you@school.com">
+        </div>
+        <div class="field">
+          <label for="l-pass">Password</label>
+          <input type="password" id="l-pass" placeholder="••••••••">
+        </div>
+        <div class="field-row">
+          <label class="check-row"><input type="checkbox"> Keep me logged in</label>
+          <a href="#">Forgot password?</a>
+        </div>
+        <button class="btn btn-primary">Log in</button>
+        <div class="divider">or</div>
+        <button class="btn btn-outline">🔵 Continue with Google</button>
+
+        <p class="switch-note">New to AWAL? <a href="#" onclick="setTab(document.querySelectorAll('.tabs button')[1],'signup')">Create a free account</a></p>
+      </div>
+
+      <div id="signup-form" style="display:none;">
+        <h1>Start playing free</h1>
+        <p class="form-sub">5 free game credits every week (20/month max). No credit card required.</p>
+
+        <div class="field">
+          <label for="s-name">Full name</label>
+          <input type="text" id="s-name" placeholder="Jane Rivera">
+        </div>
+        <div class="field">
+          <label for="s-email">Email</label>
+          <input type="email" id="s-email" placeholder="you@school.com">
+        </div>
+        <div class="field">
+          <label for="s-pass">Password</label>
+          <input type="password" id="s-pass" placeholder="Minimum 8 characters">
+        </div>
+        <button class="btn btn-primary" style="margin-top:8px;">Create free account</button>
+        <div class="divider">or</div>
+        <button class="btn btn-outline">🔵 Continue with Google</button>
+
+        <p class="switch-note">Already have an account? <a href="#" onclick="setTab(document.querySelectorAll('.tabs button')[0],'login')">Log in</a></p>
+        <p class="legal-note">By signing up, you agree to AWAL's <a href="terms.html">Terms of Service</a> and <a href="terms.html">Privacy Policy</a>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="visual-panel">
+    <div class="visual-wrap">
+      <div class="room-mock">
+        <div class="room-topbar">
+          <div class="room-dots"><span></span><span></span><span></span></div>
+          <div class="room-code mono">room/8G-4K2</div>
+        </div>
+        <div class="avatar-row">
+          <div class="avatar a1">M</div>
+          <div class="avatar a2">S</div>
+          <div class="avatar a3">J</div>
+          <div class="avatar a4">A</div>
+        </div>
+        <div class="prompt-card">
+          <div class="prompt-label">Guess Who — Round 3</div>
+          <div class="prompt-q">Describe your character. Go!</div>
+        </div>
+      </div>
+      <div class="visual-copy">
+        <h2>Your next class starts in one click.</h2>
+        <p>Generate a room, share the code, and your students are talking within seconds — no downloads, no accounts for them to manage.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+
+<script src="main.js"></script>
+</body>
+</html>
