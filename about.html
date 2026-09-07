@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — AWAL Minigames</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <nav>
+    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;" onmouseenter="showGamesDrop()" onmouseleave="scheduleHideGamesDrop()"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL<span class="cb-logo-badge" onclick="event.preventDefault(); event.stopPropagation(); window.location.href='games.html';">MINIGAMES</span></a>
+    <div class="nav-links">
+      <a href="index.html#how">How it works</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="about.html">About</a>
+      <a href="index.html#faq">FAQ</a>
+    </div>
+    <a href="login.html" class="btn btn-primary" style="text-decoration:none;">Start Free</a>
+  </nav>
+
+  <div class="games-drop" id="games-drop" onmouseenter="cancelHideGamesDrop()" onmouseleave="scheduleHideGamesDrop()">
+    <div class="games-drop-track" id="games-drop-track"></div>
+  </div>
+</header>
+
+<div id="page-about" class="page">
+<section class="about-hero">
+  <div class="wrap about-hero-grid">
+    <div>
+      <div class="eyebrow"><span class="sw"></span> Our story</div>
+      <h1>We built the classroom tool we wished we had.</h1>
+      <p>AWAL started with one frustrated online tutor, a muted student, and a slide deck nobody was looking at. Three years later, it's how thousands of ESL teachers get their students talking.</p>
+    </div>
+    <div class="quote-card">
+      <p>The best lesson I ever taught had no slides at all — just a game, a timer, and six kids talking over each other to win.</p>
+      <div class="quote-attr">— AWAL founding team, on the moment this started</div>
+    </div>
+  </div>
+</section>
+
+<section class="story">
+  <div class="wrap story-grid">
+    <h2>How it started</h2>
+    <div class="story-body">
+      <p><strong>It was 9pm on a Tuesday</strong>, halfway through a 1-on-1 online English lesson, when our founder realized they'd been talking for eleven minutes straight. The student — polite, capable, clearly bored — had said maybe forty words the entire class. The slide deck was beautiful. It was also completely one-directional.</p>
+      <p>That's the quiet failure mode of online ESL teaching: the tools we inherited from in-person classrooms and corporate presentations were never built for <em>conversation</em>. They're built for delivery. A teacher reading slides at a student isn't language practice — it's a lecture with extra steps.</p>
+      <p><strong>So the first version of AWAL wasn't a company.</strong> It was a scrappy Guess Who clone, built over a weekend, just to get one shy 14-year-old student to describe a face out loud instead of clicking "next." It worked. Not because the game was clever — because winning required speaking, and nothing else did.</p>
+      <p>Word got around a teacher Discord server. Then a Facebook group for freelance tutors. Within a few months, teachers from academies across three continents were asking for word searches, trivia, whiteboards — anything that turned their screen into a room students actually wanted to talk in.</p>
+      <p><strong>Today, AWAL is built by online teachers, for online teachers</strong> — every feature shipped because a real tutor asked for it during an 11pm lesson-prep panic. We're still small. We still read every piece of feedback. And we still believe the best measure of a good ESL lesson isn't how good the slides looked — it's how much the student talked.</p>
+    </div>
+  </div>
+</section>
+
+<section class="values">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow" style="margin:0 auto 20px; width:fit-content;"><span class="sw" style="background:var(--coral)"></span> What we believe</div>
+      <h2>The principles behind every feature we ship.</h2>
+      <p>These aren't posters on a wall — they're the filter every new game idea has to pass through.</p>
+    </div>
+    <div class="value-grid">
+      <div class="value-card">
+        <div class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="10" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3M8 20h8"/></svg></div>
+        <h3>Speaking time is sacred</h3>
+        <p>If a feature doesn't get students talking more, it doesn't ship — no matter how impressive it looks.</p>
+      </div>
+      <div class="value-card">
+        <div class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L4 14h6l-1 7 9-11h-6l1-7Z"/></svg></div>
+        <h3>Zero prep, always</h3>
+        <p>Teachers already give enough unpaid hours to lesson planning. Every tool should save time, not add to the pile.</p>
+      </div>
+      <div class="value-card">
+        <div class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg></div>
+        <h3>Simple for students, day one</h3>
+        <p>No app, no account, no learning curve. If a 7-year-old can't join in 10 seconds, we've failed.</p>
+      </div>
+      <div class="value-card">
+        <div class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.8 5.8 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.8-3.8-9S9.5 5.5 12 3Z"/></svg></div>
+        <h3>Built with real teachers</h3>
+        <p>Every feature on our roadmap started as feedback from an actual tutor in an actual lesson.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="stats">
+  <div class="wrap">
+    <div class="stats-grid">
+      <div>
+        <div class="stat-num">6</div>
+        <div class="stat-label">Live classroom games</div>
+      </div>
+      <div>
+        <div class="stat-num">50+</div>
+        <div class="stat-label">Guess Who characters</div>
+      </div>
+      <div>
+        <div class="stat-num">A1–C2</div>
+        <div class="stat-label">Levels supported</div>
+      </div>
+      <div>
+        <div class="stat-num">&lt;60s</div>
+        <div class="stat-label">To launch a live room</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="team">
+  <div class="wrap">
+    <div class="team-box">
+      <h2>Still a small team. Still reading every message.</h2>
+      <p>AWAL is built by a tiny group of former and current ESL teachers, tutors, and developers who got tired of silent classrooms. If you've got a game idea, a bug, or just a story about a lesson that finally clicked — we want to hear it.</p>
+      <button class="btn btn-dark">💬 Say hello</button>
+    </div>
+  </div>
+</section>
+
+<section class="final-cta">
+  <div class="wrap">
+    <h2>Ready to hear your students talk?</h2>
+    <p>Free to start. No credit card required.</p>
+    <button class="btn btn-dark">🎮 Start Playing Free</button>
+  </div>
+</section>
+</div>
+
+
+<footer>
+  <div class="wrap" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; width:100%;">
+    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL</a>
+    <div>© 2026 AWAL. Made for teachers who'd rather listen than lecture.</div>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>
