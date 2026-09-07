@@ -9,19 +9,28 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header>
-  <nav>
-    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;" onmouseenter="showGamesDrop()" onmouseleave="scheduleHideGamesDrop()"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL<span class="cb-logo-badge" onclick="event.preventDefault(); event.stopPropagation(); window.location.href='games.html';">MINIGAMES</span></a>
+<header class="site-header">
+  <nav class="nav-container">
+    <a href="index.html" class="logo">
+      <svg viewBox="0 0 40 40" class="logo-icon" aria-hidden="true" focusable="false">
+        <path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      AWAL
+      <span class="cb-logo-badge" id="logo-badge">MINIGAMES</span>
+    </a>
+
     <div class="nav-links">
       <a href="index.html#how">How it works</a>
       <a href="pricing.html">Pricing</a>
       <a href="about.html">About</a>
       <a href="index.html#faq">FAQ</a>
     </div>
-    <a href="login.html" class="btn btn-primary" style="text-decoration:none;">Start Free</a>
+
+    <a href="login.html" class="btn btn-primary btn-nav">Start Free</a>
   </nav>
 
-  <div class="games-drop" id="games-drop" onmouseenter="cancelHideGamesDrop()" onmouseleave="scheduleHideGamesDrop()">
+  <div class="games-drop" id="games-drop">
     <div class="games-drop-track" id="games-drop-track"></div>
   </div>
 </header>
