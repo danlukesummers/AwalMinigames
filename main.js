@@ -114,21 +114,25 @@
     const grid = document.getElementById('game-library-grid');
     if(!grid) return;
     grid.innerHTML = GAME_LIBRARY.map((g) => {
-      const activeCls = g.status === 'beta' ? 'active' : 'disabled';
-      const clickAttr = g.status === 'beta' ? ` onclick="${g.onClick}"` : '';
-      const badgeHtml = g.status === 'beta'
-        ? `<span class="gc-badge" style="background:${g.accent}; color:white;">▶ Play Beta</span>`
-        : `<span class="gc-badge" style="background:${g.tint}; color:${g.accent};">Coming soon</span>`;
-      return `<div class="game-card ${activeCls}"${clickAttr}>
+      const active = g.status === 'beta';
+      const activeCls = active ? 'active' : 'disabled';
+      const clickAttr = active ? ` onclick="${g.onClick}"` : '';
+      const statusLabel = active ? 'PLAY NOW' : 'COMING SOON';
+      const statusClass = active ? 'play' : 'soon';
+      return `<article class="game-card ${activeCls}"${clickAttr}>
         <div class="gc-top" style="background:${g.tint};">
           <div class="gc-icon" style="background:${g.accent}; color:#F5F3FA;">${g.icon}</div>
+          ${active ? '<span class="gc-live">LIVE BETA</span>' : ''}
         </div>
         <div class="gc-body">
-          <h3>${g.name}</h3>
+          <h2>${g.name}</h2>
           <p class="gc-tag">${g.tagline}</p>
-          ${badgeHtml}
+          <div class="gc-footer">
+            <span class="gc-status ${statusClass}">${statusLabel}</span>
+            ${active ? '<span class="gc-arrow">→</span>' : '<span class="gc-arrow muted">→</span>'}
+          </div>
         </div>
-      </div>`;
+      </article>`;
     }).join('');
   }
 

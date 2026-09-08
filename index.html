@@ -9,97 +9,44 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header class="site-header">
-  <nav class="nav-container">
-    <a href="index.html" class="logo">
-      <svg viewBox="0 0 40 40" class="logo-icon" aria-hidden="true" focusable="false">
-        <path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
-        <path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
-      </svg>
-      AWAL
-      <span class="cb-logo-badge" id="logo-badge">MINIGAMES</span>
-    </a>
-
+<header>
+  <nav>
+    <div class="brand-group" onmouseenter="showGamesDrop()" onmouseleave="scheduleHideGamesDrop()"><a href="index.html" class="logo" style="text-decoration:none;color:inherit;"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL</a><a href="games.html" class="cb-logo-badge">MINIGAMES</a></div>
     <div class="nav-links">
       <a href="index.html#how">How it works</a>
       <a href="pricing.html">Pricing</a>
       <a href="about.html">About</a>
       <a href="index.html#faq">FAQ</a>
     </div>
-
-    <a href="login.html" class="btn btn-primary btn-nav">Start Free</a>
+    <a href="login.html" class="btn btn-primary" style="text-decoration:none;">Start Free</a>
   </nav>
 
-  <div class="games-drop" id="games-drop">
+  <div class="games-drop" id="games-drop" onmouseenter="cancelHideGamesDrop()" onmouseleave="scheduleHideGamesDrop()">
     <div class="games-drop-track" id="games-drop-track"></div>
   </div>
 </header>
 
 <div id="page-home" class="page">
-<div class="home-carousel" id="home-carousel">
-  <div class="home-carousel-track" id="home-carousel-track"></div>
-</div>
 <!-- HERO -->
-<section class="hero hero-loud">
+<section class="hero hero-loud hero-simple">
   <div class="hero-blob hb1"></div>
   <div class="hero-blob hb2"></div>
   <div class="hero-blob hb3"></div>
 
-  <div class="wrap">
-    <div class="ticker-strip">
-      <span>🔥 2,300+ trial games played this week</span>
-      <span class="tdot">•</span>
-      <span>⭐ 4.9/5 average fun rating</span>
-      <span class="tdot">•</span>
-      <span>🟢 214 teachers online right now</span>
-    </div>
-  </div>
+  <div class="wrap hero-simple-inner">
+    <div class="eyebrow"><span class="sw"></span> Built for online ESL teachers</div>
+    <h1>English games.<br><span class="hl-wrap">Zero prep.<svg class="hl-underline" viewBox="0 0 220 18" preserveAspectRatio="none"><path d="M2 12 Q 55 2, 110 10 T 218 8" stroke="#C837E8" stroke-width="7" fill="none" stroke-linecap="round"/></svg></span></h1>
+    <p class="hero-sub">Pick a game. Start playing. Get your students talking.</p>
 
-  <div class="wrap hero-grid">
-    <div>
-      <div class="eyebrow"><span class="sw"></span> Built for online ESL teachers</div>
-      <h1>Get your students <span class="hl-wrap">talking<svg class="hl-underline" viewBox="0 0 220 18" preserveAspectRatio="none"><path d="M2 12 Q 55 2, 110 10 T 218 8" stroke="#C837E8" stroke-width="7" fill="none" stroke-linecap="round"/></svg></span> — not you.</h1>
-      <p class="hero-sub">Live multiplayer ESL games your students actually beg to play. Pick a game, share a link, watch them talk. Zero prep, zero downloads.</p>
-      <div class="hero-ctas">
-        <button class="btn btn-primary btn-glow" onclick="openGuestLobby()">Try a Free Room Now 🚀</button>
-        <button class="btn btn-ghost">▶ Watch 60-Second Demo</button>
-      </div>
-      <p class="micro">No sign-up required<span class="sep">•</span>1 free guest trial game<span class="sep">•</span>Instant link for your student</p>
-
-      <div class="stat-chip-row">
-        <div class="stat-chip"><span class="sc-num">1</span> free game, zero friction</div>
-        <div class="stat-chip"><span class="sc-num">10s</span> to your first room</div>
-        <div class="stat-chip"><span class="sc-num">5</span> credits/week once you sign up</div>
-      </div>
+    <div class="hero-ctas hero-simple-ctas">
+      <button class="btn btn-primary btn-glow btn-large" onclick="openGuestLobby()">▶ Play Free Now</button>
+      <a class="btn btn-ghost btn-large" href="games.html">Browse Games →</a>
     </div>
 
-    <div class="room-mock-wrap">
-      <div class="ticket-badge">🎟️ 1 FREE GAME</div>
-      <div class="float-sticker fs1">🎉</div>
-      <div class="float-sticker fs2">✨</div>
-      <div class="float-sticker fs3">🔥</div>
-      <div class="room-mock">
-        <div class="speech-float sf1">"Is it a woman?" 🗣️</div>
-        <div class="speech-float sf2">+1 speaking turn</div>
-        <div class="speech-float sf3">🔥 4 guesses left</div>
-        <div class="room-topbar">
-          <div class="room-dots"><span></span><span></span><span></span></div>
-          <div class="room-code mono">room/8G-4K2</div>
-        </div>
-        <div class="room-canvas">
-          <div class="avatar-row">
-            <div class="avatar a1 bounce-1">M</div>
-            <div class="avatar a2 bounce-2">S</div>
-            <div class="avatar a3 bounce-3">J</div>
-            <div class="avatar a4 bounce-4">A</div>
-          </div>
-          <div class="prompt-card">
-            <div class="prompt-label">Guess Who — Round 3</div>
-            <div class="prompt-q">Describe your character. Go!</div>
-          </div>
-          <div class="bubble coral">🎙️ Mateo is speaking…</div>
-        </div>
-      </div>
+    <div class="hero-proof">
+      <span>✓ No account required</span>
+      <span>✓ Free trial game</span>
+      <span>✓ Students join by link</span>
     </div>
   </div>
 </section>
@@ -167,73 +114,7 @@
   </div>
 </section>
 
-<!-- FEATURES -->
-<section class="features" id="features">
-  <div class="wrap">
-    <div class="section-head">
-      <div class="eyebrow"><span class="sw"></span> Pick your weapon</div>
-      <h2>9 games. Every level, A1 to C2. All ridiculously fun.</h2>
-      <p>These aren't worksheets with sound effects — they're actual games students ask to play again.</p>
-    </div>
-    <div class="feat-grid">
-      <div class="feat-card fc1">
-        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12S5.6 5.5 12 5.5 22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg></div>
-        <h3>Guess Who (ESL Edition)</h3>
-        <div class="feat-tag">50+ characters. Zero repeat games.</div>
-        <p>Every round pulls from a pool of 50+ unique avatars, so students have to actually describe to win. Drills adjectives and yes/no questions without feeling like a drill.</p>
-      </div>
-      <div class="feat-card fc2">
-        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4.2L15.8 5 19 8.2 8.2 19 4 20Z"/><path d="M13.3 6.7l3 3"/></svg></div>
-        <h3>Multiplayer Pictionary</h3>
-        <div class="feat-tag">One word. Six players. Total chaos.</div>
-        <p>A fast drawing engine for 2–6 players with AI-generated vocabulary matched to your topic. Students shout guesses in real time — vocabulary review, but loud.</p>
-      </div>
-      <div class="feat-card fc3" style="position:relative; cursor:pointer;" onclick="window.location.href='games.html'">
-        <span style="position:absolute; top:-10px; right:16px; background:var(--coral); color:white; font-size:10.5px; font-weight:800; padding:4px 10px; border-radius:100px; font-family:'Space Mono';">PLAY NOW</span>
-        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21h10M6 21V3h10v4"/><circle cx="16" cy="9.3" r="2.3"/></svg></div>
-        <h3>Interactive Hangman</h3>
-        <div class="feat-tag">A classic, rebuilt for speaking.</div>
-        <p>Load your own list or generate an AI word bank on any topic in seconds. Students call out letters aloud — perfect for warm-ups or reviewing last week's unit.</p>
-      </div>
-      <div class="feat-card fc4">
-        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v3.2a5 5 0 0 1-10 0V4Z"/><path d="M7 5.2H4.3v1.8a3 3 0 0 0 3 3M17 5.2h2.7V7a3 3 0 0 1-3 3"/><path d="M12 12.2V16M9.3 20h5.4M10 16h4v4h-4z"/></svg></div>
-        <h3>Team Trivia</h3>
-        <div class="feat-tag">The Baamboozle alternative that builds itself.</div>
-        <p>Pre-made trivia sets or an instant AI quiz calibrated A1–C2. Teams debate answers out loud before locking them in — a game show with built-in speaking practice.</p>
-      </div>
-      <div class="feat-card fc5">
-        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6.2 6.2h3.6M6.2 9.4h3.6"/><circle cx="16.5" cy="16.5" r="4"/><path d="M19.6 19.6L22 22"/></svg></div>
-        <h3>Word Search</h3>
-        <div class="feat-tag">Vocabulary consolidation, together.</div>
-        <p>Real-time collaborative word hunts where the whole class searches one shared board at once. Great for cool-downs or filling the last 5 minutes with purpose.</p>
-      </div>
-      <div class="feat-card fc7">
-        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg></div>
-        <h3>Crossword</h3>
-        <div class="feat-tag">Clues that make them explain themselves.</div>
-        <p>Auto-generated grids from any vocabulary list or AI topic prompt. Solving a clue out loud means defining, describing, and negotiating with a partner — not just filling boxes.</p>
-      </div>
-      <div class="feat-card fc8">
-        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 0 1 13-5"/><path d="M19.5 12a7.5 7.5 0 0 1-13 5"/><path d="M17.5 3.2V7h-3.8M6.5 20.8V17h3.8"/></svg></div>
-        <h3>Spin the Wheel</h3>
-        <div class="feat-tag">Random prompts. Zero awkward silence.</div>
-        <p>Spin for a question, topic, or challenge and the student has to answer on the spot. Perfect icebreaker or filler round — nobody gets to opt out of the spin.</p>
-      </div>
-      <div class="feat-card fc9">
-        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9.5L5 20v-4H4V5Z"/><path d="M10.3 9.6a1.8 1.8 0 1 1 2.6 1.6c-.8.4-1.1.8-1.1 1.6"/><circle cx="12" cy="14.7" r="0.15" fill="currentColor" stroke="none"/></svg></div>
-        <h3>Two Truths and One Lie</h3>
-        <div class="feat-tag">Classic icebreaker, built for speaking.</div>
-        <p>Students submit three statements, the class votes and questions them to find the lie. Naturally drills question forms and gets even shy students talking to defend their story.</p>
-      </div>
-      <div class="feat-card fc6">
-        <div class="feat-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="12" rx="1.5"/><path d="M8 20l4-4 4 4M12 16.5V20"/></svg></div>
-        <h3>Interactive Whiteboard</h3>
-        <div class="feat-tag">Your always-on explainer tool.</div>
-        <p>A shared canvas ready the second you need to sketch a grammar point. Included free on every plan — no separate app, no screen-share juggling.</p>
-      </div>
-    </div>
-  </div>
-</section>
+
 
 <!-- HOW IT WORKS -->
 <section class="how" id="how">
@@ -261,7 +142,7 @@
       </div>
     </div>
     <div class="how-cta">
-      <button class="btn btn-primary">🚀 Create Your First Room Free</button>
+      <button class="btn btn-primary" onclick="openGuestLobby()">🚀 Create Your First Room Free</button>
     </div>
   </div>
 </section>

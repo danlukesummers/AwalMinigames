@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Game Library — AWAL Minigames</title>
+<title>Game Dashboard — AWAL Minigames</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
@@ -11,7 +11,7 @@
 <body>
 <header>
   <nav>
-    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;" onmouseenter="showGamesDrop()" onmouseleave="scheduleHideGamesDrop()"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL<span class="cb-logo-badge" onclick="event.preventDefault(); event.stopPropagation(); window.location.href='games.html';">MINIGAMES</span></a>
+    <div class="brand-group" onmouseenter="showGamesDrop()" onmouseleave="scheduleHideGamesDrop()"><a href="index.html" class="logo" style="text-decoration:none;color:inherit;"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL</a><a href="games.html" class="cb-logo-badge">MINIGAMES</a></div>
     <div class="nav-links">
       <a href="index.html#how">How it works</a>
       <a href="pricing.html">Pricing</a>
@@ -27,15 +27,16 @@
 </header>
 
 <div id="page-games" class="page">
-  <section style="padding:70px 0 100px;">
+  <section class="games-dashboard">
     <div class="wrap">
-      <div class="section-head" style="margin-bottom:40px;">
-        <div class="eyebrow" style="margin:0 auto 20px; width:fit-content;"><span class="sw"></span> Beta</div>
-        <h1 style="font-size:clamp(30px,3.6vw,42px); margin-bottom:12px;">Game Library</h1>
-        <p>Hangman is live in beta. Each game gets its own room, its own rules, its own identity.</p>
+      <div class="dashboard-head">
+        <div class="eyebrow"><span class="sw"></span> Pick your weapon</div>
+        <h1>Pick your game.</h1>
+        <p>Free to start. No account required. Get your class playing in seconds.</p>
+        <div class="dashboard-proof"><span>✓ Browser-based</span><span>✓ No student accounts</span><span>✓ Built for speaking</span></div>
       </div>
 
-      <div class="game-tile-grid" id="game-library-grid"></div>
+      <div class="game-card-grid" id="game-library-grid"></div>
     </div>
   </section>
 </div>
