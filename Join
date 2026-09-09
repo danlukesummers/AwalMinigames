@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Join a game — AWAL Minigames</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">
+  <div style="max-width:400px; width:100%; background:var(--chalk); border:1.5px solid var(--line); border-radius:20px; padding:36px; text-align:center; box-shadow:0 4px 24px rgba(30,27,46,0.06);">
+
+    <a href="index.html" style="text-decoration:none; color:inherit; display:inline-flex; align-items:center; gap:8px; font-family:'Bungee'; font-size:20px; margin-bottom:26px;">
+      <svg viewBox="0 0 40 40" width="26" height="26" aria-hidden="true" focusable="false"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>
+      AWAL
+    </a>
+
+    <!-- STEP 1: enter code + name -->
+    <div id="join-form-step">
+      <h1 style="font-size:22px; margin-bottom:8px;">Join a game</h1>
+      <p style="color:var(--ink-soft); font-size:14px; margin-bottom:24px;">Enter the 6-digit code your teacher shared.</p>
+
+      <input type="text" id="join-code-input" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="123456"
+        style="width:100%; box-sizing:border-box; text-align:center; font-family:'Space Mono',monospace; font-size:26px; letter-spacing:0.3em; padding:14px; border-radius:12px; border:1.5px solid var(--line); margin-bottom:14px;">
+
+      <input type="text" id="join-name-input" maxlength="24" autocomplete="off" placeholder="Your name"
+        style="width:100%; box-sizing:border-box; font-family:'Space Grotesk',sans-serif; font-size:15px; padding:13px 16px; border-radius:12px; border:1.5px solid var(--line); margin-bottom:18px;">
+
+      <button class="btn btn-primary btn-block" id="join-submit-btn" onclick="handleJoinSubmit()">Join room</button>
+      <p id="join-error" style="color:var(--coral-deep); font-size:13px; margin-top:12px; display:none;"></p>
+    </div>
+
+    <!-- STEP 2: waiting for the teacher to start -->
+    <div id="join-waiting-step" style="display:none;">
+      <div style="font-size:38px; margin-bottom:10px;">🎮</div>
+      <h1 style="font-size:22px; margin-bottom:8px;">You're in, <span id="join-player-name"></span>!</h1>
+      <p style="color:var(--ink-soft); font-size:14px;">Waiting for your teacher to start the game…</p>
+      <div style="margin:20px auto 0; width:32px; height:32px; border:3px solid var(--line); border-top-color:var(--coral); border-radius:50%; animation:join-spin 0.8s linear infinite;"></div>
+    </div>
+
+    <!-- STEP 3: teacher started the round -->
+    <div id="join-started-step" style="display:none;">
+      <div style="font-size:38px; margin-bottom:10px;">🚀</div>
+      <h1 style="font-size:22px; margin-bottom:8px;">The game has started!</h1>
+      <p style="color:var(--ink-soft); font-size:14px;">Watch your teacher's screen to follow along.</p>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  @keyframes join-spin { to { transform: rotate(360deg); } }
+</style>
+
+<script type="module" src="lobby.js"></script>
+<script>
+  // Pre-fill the code if this page was opened via a shared link like
+  // join.html?code=123456 (this is exactly the link the teacher's room
+  // screen generates and copies).
+  window.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if(code) document.getElementById('join-code-input').value = code;
+  });
+
+  async function waitForLobbySupabase(){
+    if(window.LobbySupabase) return;
+    await new Promise(resolve => {
+      const check = setInterval(() => {
+        if(window.LobbySupabase){ clearInterval(check); resolve(); }
+      }, 50);
+    });
+  }
+
+  function showJoinError(message){
+    const errorEl = document.getElementById('join-error');
+    errorEl.textContent = message;
+    errorEl.style.display = 'block';
+  }
+
+  async function handleJoinSubmit(){
+    document.getElementById('join-error').style.display = 'none';
+
+    const code = document.getElementById('join-code-input').value.trim();
+    const name = document.getElementById('join-name-input').value.trim();
+
+    if(!/^\d{6}$/.test(code)){
+      showJoinError('Enter the 6-digit code exactly as your teacher gave it.');
+      return;
+    }
+    if(!name){
+      showJoinError("Enter your name so your teacher can see you've joined.");
+      return;
+    }
+
+    const submitBtn = document.getElementById('join-submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Joining…';
+
+    await waitForLobbySupabase();
+
+    const lobby = await window.LobbySupabase.findLobbyByCode(code);
+    if(!lobby){
+      showJoinError('No room found with that code. Double-check it and try again.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Join room';
+      return;
+    }
+    if(lobby.status !== 'waiting'){
+      showJoinError('This room has already started or finished.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Join room';
+      return;
+    }
+
+    const player = await window.LobbySupabase.joinLobby(lobby.id, name);
+    if(!player){
+      showJoinError('Could not join the room — check your connection and try again.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Join room';
+      return;
+    }
+
+    document.getElementById('join-player-name').textContent = name;
+    document.getElementById('join-form-step').style.display = 'none';
+    document.getElementById('join-waiting-step').style.display = 'block';
+
+    window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
+      if(updatedLobby.status === 'playing'){
+        document.getElementById('join-waiting-step').style.display = 'none';
+        document.getElementById('join-started-step').style.display = 'block';
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
