@@ -291,35 +291,89 @@
   function hgResetToSetup(){
     document.getElementById('hg-play').style.display = 'none';
     document.getElementById('hg-summary').style.display = 'none';
+    document.getElementById('hg-room').style.display = 'none';
+    document.getElementById('hg-dashboard').style.display = 'none';
     hgStopAllBots();
+    if(hgLobbyChannel && window.LobbySupabase){
+      window.LobbySupabase.unsubscribe(hgLobbyChannel);
+      hgLobbyChannel = null;
+    }
+    hgLobby = null;
     document.getElementById('hg-setup').style.display = 'block';
   }
 
 
   /* ============ CLASSROOM ROOM MODE ============ */
-  /* No backend exists in this file, so a real second device can't actually
-     connect here -- there's no server, no websocket, nothing to join over
-     the network. What this section builds instead is a convincing working
-     SIMULATION: the room code/link generation is real UI, "students" are
-     simulated via the demo buttons below (standing in for real join events
-     a production build would receive over a websocket), and once a student
-     is in the roster their gameplay is driven by an autonomous guesser so
-     the teacher's dashboard genuinely updates live in front of you -- same
-     UX promise, just without a network on the other end. */
+  /* Live classroom rooms are now backed by real Supabase tables + Realtime
+     (see supabase-client.js, lobby.js, and supabase-schema.sql). The
+     lobby/join mechanism below is genuinely real -- a student on a
+     different device typing in the room code actually joins this exact
+     room and the teacher sees them appear live, no simulation involved.
+
+     What's still simulated: once "Begin round" is clicked, each joined
+     student's actual letter-by-letter guessing on the dashboard is still
+     driven by the local bot guesser (hgStartBot, further down this file),
+     not by real input from that student's own device. Syncing live guesses
+     per student is a bigger feature (a `player_progress` realtime table,
+     with each student's own browser running the guessing UI and pushing
+     guesses up) and is a natural next step, not built here -- this pass
+     covers real room creation, real joining, and real "teacher started the
+     game" notification, which is what was asked for. */
 
   const HG_STUDENT_COLORS = ['#00F3FF', '#39FF14', '#A855F7', '#FFB020'];
   const hgRoom = {
     code: null,
     students: [], // { id, name, color, guessed:[], misses:0, done:false, won:false, timer:null }
   };
+  let hgLobby = null;        // the Supabase row for this room: { id, code, status, players, ... }
+  let hgLobbyChannel = null; // the active realtime subscription, so it can be torn down later
 
-  function hgOpenRoom(){
-    hgRoom.code = String(Math.floor(1000 + Math.random() * 9000));
+  async function hgOpenRoom(){
     hgRoom.students = [];
-    document.getElementById('hg-room-code').textContent = hgRoom.code;
-    document.getElementById('hg-room-link').textContent = 'https://chatterboxgames.app/join/' + hgRoom.code;
+    document.getElementById('hg-room-code').textContent = '••••••';
+    document.getElementById('hg-room-link').textContent = 'Creating room…';
     document.getElementById('hg-room').style.display = 'block';
+    document.getElementById('hg-begin-btn').disabled = true;
     hgRenderRoster();
+
+    if(!window.LobbySupabase){
+      // lobby.js is a module and browsers defer those -- in the extremely
+      // unlikely case this fires before it's finished loading, wait for it.
+      await new Promise(resolve => {
+        const check = setInterval(() => {
+          if(window.LobbySupabase){ clearInterval(check); resolve(); }
+        }, 50);
+      });
+    }
+
+    const lobby = await window.LobbySupabase.createLobby('hangman');
+    if(!lobby){
+      document.getElementById('hg-room-link').textContent =
+        'Could not create the room -- check your connection and try again.';
+      return;
+    }
+
+    hgLobby = lobby;
+    document.getElementById('hg-room-code').textContent = lobby.code;
+    document.getElementById('hg-room-link').textContent =
+      window.location.origin + '/join.html?code=' + lobby.code;
+
+    if(hgLobbyChannel){
+      window.LobbySupabase.unsubscribe(hgLobbyChannel);
+    }
+    hgLobbyChannel = window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
+      hgRoom.students = (updatedLobby.players || []).map((p, i) => ({
+        id: p.id,
+        name: p.name,
+        color: HG_STUDENT_COLORS[i % HG_STUDENT_COLORS.length],
+        guessed: [],
+        misses: 0,
+        done: false,
+        won: false,
+        timer: null,
+      }));
+      hgRenderRoster();
+    });
   }
 
   function hgCopyRoomLink(){
@@ -339,13 +393,12 @@
       const student = hgRoom.students[i];
       if(student){
         html += '<div class="hg-seat filled">' +
-          '<div class="hg-seat-avatar" style="background:' + student.color + ';">' + student.name.charAt(student.name.length - 1) + '</div>' +
+          '<div class="hg-seat-avatar" style="background:' + student.color + ';">' + student.name.charAt(0).toUpperCase() + '</div>' +
           '<div class="hg-seat-name">' + student.name + '</div>' +
         '</div>';
       } else {
         html += '<div class="hg-seat">' +
-          '<div class="hg-seat-name">Empty seat</div>' +
-          '<button class="hg-seat-btn" onclick="hgSimulateJoin()">(Demo) Simulate join</button>' +
+          '<div class="hg-seat-name" style="opacity:0.6;">Waiting for a student…</div>' +
         '</div>';
       }
     }
@@ -357,27 +410,16 @@
     beginBtn.textContent = '▶ Begin round (' + count + ' student' + (count === 1 ? '' : 's') + ' joined)';
   }
 
-  function hgSimulateJoin(){
-    if(hgRoom.students.length >= 4) return;
-    const seatIndex = hgRoom.students.length;
-    hgRoom.students.push({
-      id: 'hg-student-' + seatIndex,
-      name: 'Student ' + (seatIndex + 1),
-      color: HG_STUDENT_COLORS[seatIndex],
-      guessed: [],
-      misses: 0,
-      done: false,
-      won: false,
-      timer: null,
-    });
-    hgRenderRoster();
-  }
-
-  function hgBeginRound(){
+  async function hgBeginRound(){
     if(hgRoom.students.length === 0) return;
     document.getElementById('hg-room').style.display = 'none';
     document.getElementById('hg-dashboard').style.display = 'block';
     document.getElementById('hg-dash-word-total').textContent = hgState.words.length;
+
+    if(hgLobby){
+      await window.LobbySupabase.startLobbyGame(hgLobby.id, hgState.words);
+    }
+
     hgLoadDashboardWord();
   }
 
