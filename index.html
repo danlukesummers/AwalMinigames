@@ -23,6 +23,7 @@
 
   <div class="games-drop" id="games-drop" onmouseenter="cancelHideGamesDrop()" onmouseleave="scheduleHideGamesDrop()">
     <div class="games-drop-track" id="games-drop-track"></div>
+    <!-- Game icons are loaded by main.js from assets/icons/. -->
   </div>
 </header>
 
@@ -318,7 +319,9 @@
           <div class="gp-name">Pictionary</div>
         </div>
         <div class="game-pick" onclick="selectGuestGame('hangman')">
-          <div class="gp-icon" style="background:#FFE0DD;">💀</div>
+          <div class="gp-icon">
+            <img src="assets/icons/hangman.svg" alt="Hangman" style="width:100%;height:100%;object-fit:contain;">
+          </div>
           <div class="gp-name">Hangman</div>
         </div>
         <div class="game-pick" onclick="selectGuestGame('impostor')">
