@@ -71,8 +71,7 @@
      and renders into three places: the logo hover dropdown, the always-
      visible home page carousel, and the Game Library grid. */
   const GAME_LIBRARY = [
-    { id:'hangman',    name:'Interactive Hangman',    short:'Hangman',        icon:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21h10M6 21V3h10v4"/><circle cx="16" cy="9.3" r="2.3"/></svg>', tint:'#FCE4F4', accent:'#C837E8', tagline:'A classic, rebuilt for live speaking practice.', status:'beta',
-      onClick:"window.location.href='hangman.html';" },
+    { id:'hangman',    name:'Interactive Hangman',    short:'Hangman',        icon:'<img src="assets/icons/hangman.svg" alt="Hangman" class="game-icon-svg">', onClick:"window.location.href='hangman.html';" },
     { id:'guess-who',  name:'System Suspects',         short:'Sys. Suspects',  icon:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12S5.6 5.5 12 5.5 22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>', tint:'#DFF7FC', accent:'#00B8C4', tagline:'Isolate the target signal before you run out of moves.', status:'beta',
       onClick:"window.location.href='system-suspects.html';" },
     { id:'pictionary', name:'Multiplayer Pictionary',  short:'Pictionary',     icon:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4.2L15.8 5 19 8.2 8.2 19 4 20Z"/><path d="M13.3 6.7l3 3"/></svg>', tint:'#EDE7FC', accent:'#6D4FE0', tagline:'One word. Six players. Total chaos.', status:'soon' },
