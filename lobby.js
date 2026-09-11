@@ -46,11 +46,27 @@ async function createLobby(game){
 async function startLobbyGame(lobbyId, words){
   const { error } = await supabase
     .from('lobbies')
-    .update({ status: 'playing', words: words || [] })
+    .update({ status: 'playing', words: words || [], current_word_index: 0 })
     .eq('id', lobbyId);
 
   if(error){
     console.error('[LobbySupabase] startLobbyGame error:', error);
+    return false;
+  }
+  return true;
+}
+
+// Called by the teacher's "Next word" button. Every student's browser is
+// subscribed to this same lobby row, so bumping this column is literally
+// what moves the whole class on to the next word together.
+async function setLobbyWordIndex(lobbyId, wordIndex){
+  const { error } = await supabase
+    .from('lobbies')
+    .update({ current_word_index: wordIndex })
+    .eq('id', lobbyId);
+
+  if(error){
+    console.error('[LobbySupabase] setLobbyWordIndex error:', error);
     return false;
   }
   return true;
@@ -112,12 +128,72 @@ async function joinLobby(lobbyId, playerName){
   return player;
 }
 
+/* ============ SHARED: per-student live guessing progress ============ */
+//
+// One row per (lobby, student, word) -- see supabase-schema-progress.sql.
+// The student's own browser owns writes to their row; the teacher's
+// dashboard and (in principle) other students only ever read.
+
+async function upsertProgress(lobbyId, playerId, playerName, wordIndex, guessed, misses, done, won){
+  const { error } = await supabase
+    .from('lobby_progress')
+    .upsert({
+      lobby_id: lobbyId,
+      player_id: playerId,
+      player_name: playerName,
+      word_index: wordIndex,
+      guessed,
+      misses,
+      done,
+      won,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'lobby_id,player_id,word_index' });
+
+  if(error){
+    console.error('[LobbySupabase] upsertProgress error:', error);
+    return false;
+  }
+  return true;
+}
+
+// One-time catch-up read, used right after the dashboard subscribes -- in
+// case a fast student already guessed before the subscription was live.
+async function fetchProgress(lobbyId, wordIndex){
+  const { data, error } = await supabase
+    .from('lobby_progress')
+    .select('*')
+    .eq('lobby_id', lobbyId)
+    .eq('word_index', wordIndex);
+
+  if(error){
+    console.error('[LobbySupabase] fetchProgress error:', error);
+    return [];
+  }
+  return data;
+}
+
+// Fires `onChange(row)` any time any student's progress row for this lobby
+// is inserted or updated (covers both their very first guess and every
+// guess after that).
+function subscribeToProgress(lobbyId, onChange){
+  const channel = supabase
+    .channel('progress-' + lobbyId)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'lobby_progress', filter: 'lobby_id=eq.' + lobbyId },
+      (payload) => onChange(payload.new || payload.old)
+    )
+    .subscribe();
+  return channel;
+}
+
 /* ============ SHARED: realtime ============ */
 
 // Fires `onUpdate(newRow)` any time this lobby's row changes (a student
 // joining changes `players`; the teacher starting the round changes
-// `status`). Both the teacher view and the student view use this same
-// function -- they just react to different fields in the payload.
+// `status`; the teacher clicking "Next word" changes `current_word_index`).
+// Both the teacher view and the student view use this same function --
+// they just react to different fields in the payload.
 function subscribeToLobby(lobbyId, onUpdate){
   const channel = supabase
     .channel('lobby-' + lobbyId)
@@ -137,8 +213,12 @@ function unsubscribe(channel){
 window.LobbySupabase = {
   createLobby,
   startLobbyGame,
+  setLobbyWordIndex,
   findLobbyByCode,
   joinLobby,
+  upsertProgress,
+  fetchProgress,
+  subscribeToProgress,
   subscribeToLobby,
   unsubscribe,
 };

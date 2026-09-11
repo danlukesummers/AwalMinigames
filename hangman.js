@@ -293,7 +293,10 @@
     document.getElementById('hg-summary').style.display = 'none';
     document.getElementById('hg-room').style.display = 'none';
     document.getElementById('hg-dashboard').style.display = 'none';
-    hgStopAllBots();
+    if(hgProgressChannel && window.LobbySupabase){
+      window.LobbySupabase.unsubscribe(hgProgressChannel);
+      hgProgressChannel = null;
+    }
     if(hgLobbyChannel && window.LobbySupabase){
       window.LobbySupabase.unsubscribe(hgLobbyChannel);
       hgLobbyChannel = null;
@@ -304,29 +307,30 @@
 
 
   /* ============ CLASSROOM ROOM MODE ============ */
-  /* Live classroom rooms are now backed by real Supabase tables + Realtime
-     (see supabase-client.js, lobby.js, and supabase-schema.sql). The
-     lobby/join mechanism below is genuinely real -- a student on a
-     different device typing in the room code actually joins this exact
-     room and the teacher sees them appear live, no simulation involved.
+  /* Live classroom rooms are backed by real Supabase tables + Realtime (see
+     supabase-client.js, lobby.js, and the schema files). Room creation,
+     joining, and gameplay are all genuinely real now:
 
-     What's still simulated: once "Begin round" is clicked, each joined
-     student's actual letter-by-letter guessing on the dashboard is still
-     driven by the local bot guesser (hgStartBot, further down this file),
-     not by real input from that student's own device. Syncing live guesses
-     per student is a bigger feature (a `player_progress` realtime table,
-     with each student's own browser running the guessing UI and pushing
-     guesses up) and is a natural next step, not built here -- this pass
-     covers real room creation, real joining, and real "teacher started the
-     game" notification, which is what was asked for. */
+     - A student on a different device typing in the room code actually
+       joins this exact room and the teacher sees them appear live.
+     - Once "Begin round" is clicked, each student plays the word on their
+       OWN device (see join.html), and every letter they guess is written to
+       the `lobby_progress` table in Supabase.
+     - This dashboard subscribes to that same table and renders whichever
+       student's card just changed -- there is no bot standing in for
+       anyone anymore.
+     - "Next word" advances `lobbies.current_word_index`, which every
+       student's browser is also watching, so the whole class moves on
+       together. */
 
   const HG_STUDENT_COLORS = ['#00F3FF', '#39FF14', '#A855F7', '#FFB020'];
   const hgRoom = {
     code: null,
-    students: [], // { id, name, color, guessed:[], misses:0, done:false, won:false, timer:null }
+    students: [], // { id, name, color, guessed:[], misses:0, done:false, won:false }
   };
-  let hgLobby = null;        // the Supabase row for this room: { id, code, status, players, ... }
-  let hgLobbyChannel = null; // the active realtime subscription, so it can be torn down later
+  let hgLobby = null;          // the Supabase row for this room: { id, code, status, players, words, current_word_index, ... }
+  let hgLobbyChannel = null;   // realtime subscription on the lobby row itself (players joining, round starting)
+  let hgProgressChannel = null; // realtime subscription on lobby_progress (live per-student guesses)
 
   async function hgOpenRoom(){
     hgRoom.students = [];
@@ -370,7 +374,6 @@
         misses: 0,
         done: false,
         won: false,
-        timer: null,
       }));
       hgRenderRoster();
     });
@@ -420,6 +423,16 @@
       await window.LobbySupabase.startLobbyGame(hgLobby.id, hgState.words);
     }
 
+    if(hgProgressChannel){
+      window.LobbySupabase.unsubscribe(hgProgressChannel);
+    }
+    if(hgLobby){
+      hgProgressChannel = window.LobbySupabase.subscribeToProgress(hgLobby.id, (row) => {
+        if(!row || row.word_index !== hgState.idx) return;
+        hgApplyProgressRow(row);
+      });
+    }
+
     hgLoadDashboardWord();
   }
 
@@ -450,10 +463,32 @@
       '</div>'
     ).join('');
 
-    hgRoom.students.forEach(s => {
-      hgRenderDashboardCard(s, word);
-      hgStartBot(s, word);
-    });
+    hgRoom.students.forEach(s => hgRenderDashboardCard(s, word));
+
+    // Catch up on anything that already landed before this subscription/
+    // render happened (e.g. a very fast student). The live subscription
+    // above keeps everything correct after this point regardless.
+    if(hgLobby){
+      window.LobbySupabase.fetchProgress(hgLobby.id, hgState.idx).then(rows => {
+        rows.forEach(row => hgApplyProgressRow(row));
+      });
+    }
+  }
+
+  // Applies one student's live progress row (from Supabase) onto their
+  // dashboard card. This is what replaces the old bot simulation.
+  function hgApplyProgressRow(row){
+    const student = hgRoom.students.find(s => s.id === row.player_id);
+    if(!student || student.done) return;
+    const word = hgState.words[hgState.idx];
+
+    student.guessed = row.guessed || [];
+    student.misses = row.misses || 0;
+    hgRenderDashboardCard(student, word);
+
+    if(row.done){
+      hgFinishStudent(student, !!row.won, word);
+    }
   }
 
   function hgRenderDashboardCard(student, word){
@@ -466,45 +501,9 @@
     document.getElementById(student.id + '-misses').textContent = student.misses;
   }
 
-  // Autonomous guesser standing in for a real student's live input. Biased
-  // toward letters actually in the word so rounds resolve at a watchable
-  // pace, but still guesses wrong sometimes for realism/tension.
-  function hgStartBot(student, word){
-    const uniqueLetters = [...new Set(word.split(''))];
-    const tick = () => {
-      if(student.done) return;
-      let letter;
-      const remaining = uniqueLetters.filter(l => !student.guessed.includes(l));
-      if(remaining.length && Math.random() < 0.65){
-        letter = remaining[Math.floor(Math.random() * remaining.length)];
-      } else {
-        const alphabet = 'abcdefghijklmnopqrstuvwxyz'.split('').filter(l => !student.guessed.includes(l));
-        letter = alphabet[Math.floor(Math.random() * alphabet.length)];
-      }
-      student.guessed.push(letter);
-      if(!word.includes(letter)){
-        student.misses++;
-      }
-      hgRenderDashboardCard(student, word);
-
-      const solved = word.split('').every(ch => student.guessed.includes(ch));
-      if(solved){
-        hgFinishStudent(student, true, word);
-        return;
-      }
-      if(student.misses >= 6){
-        hgFinishStudent(student, false, word);
-        return;
-      }
-      student.timer = setTimeout(tick, 700 + Math.random() * 900);
-    };
-    student.timer = setTimeout(tick, 500 + Math.random() * 700);
-  }
-
   function hgFinishStudent(student, won, word){
     student.done = true;
     student.won = won;
-    clearTimeout(student.timer);
     const card = document.getElementById(student.id);
     const statusEl = document.getElementById(student.id + '-status');
     if(won){
@@ -526,11 +525,7 @@
     }
   }
 
-  function hgStopAllBots(){
-    hgRoom.students.forEach(s => clearTimeout(s.timer));
-  }
-
-  function hgDashNextWord(){
+  async function hgDashNextWord(){
     if(hgState.idx >= hgState.words.length - 1){
       document.getElementById('hg-dashboard').style.display = 'none';
       document.getElementById('hg-summary').style.display = 'block';
@@ -539,9 +534,15 @@
         'Round complete! <strong>' + winners + '</strong> of <strong>' + hgRoom.students.length + '</strong> students solved the final word.';
       document.getElementById('hg-summary-note').textContent =
         'Start a new room when you are ready for another round.';
+      if(hgProgressChannel){
+        window.LobbySupabase.unsubscribe(hgProgressChannel);
+        hgProgressChannel = null;
+      }
       return;
     }
     hgState.idx++;
+    if(hgLobby){
+      await window.LobbySupabase.setLobbyWordIndex(hgLobby.id, hgState.idx);
+    }
     hgLoadDashboardWord();
   }
-

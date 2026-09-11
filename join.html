@@ -11,7 +11,7 @@
 <body>
 
 <div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">
-  <div style="max-width:400px; width:100%; background:var(--chalk); border:1.5px solid var(--line); border-radius:20px; padding:36px; text-align:center; box-shadow:0 4px 24px rgba(30,27,46,0.06);">
+  <div style="max-width:440px; width:100%; background:var(--chalk); border:1.5px solid var(--line); border-radius:20px; padding:36px; text-align:center; box-shadow:0 4px 24px rgba(30,27,46,0.06);">
 
     <a href="index.html" style="text-decoration:none; color:inherit; display:inline-flex; align-items:center; gap:8px; font-family:'Bungee'; font-size:20px; margin-bottom:26px;">
       <svg viewBox="0 0 40 40" width="26" height="26" aria-hidden="true" focusable="false"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>
@@ -41,11 +41,29 @@
       <div style="margin:20px auto 0; width:32px; height:32px; border:3px solid var(--line); border-top-color:var(--coral); border-radius:50%; animation:join-spin 0.8s linear infinite;"></div>
     </div>
 
-    <!-- STEP 3: teacher started the round -->
-    <div id="join-started-step" style="display:none;">
-      <div style="font-size:38px; margin-bottom:10px;">🚀</div>
-      <h1 style="font-size:22px; margin-bottom:8px;">The game has started!</h1>
-      <p style="color:var(--ink-soft); font-size:14px;">Watch your teacher's screen to follow along.</p>
+    <!-- STEP 3: live play -- student guesses letters here, on their own device -->
+    <div id="join-play-step" style="display:none; text-align:left;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <span class="mono" style="font-size:13px; color:var(--ink-soft);">Word <span id="join-word-idx">1</span> / <span id="join-word-total">–</span></span>
+        <span class="mono" style="font-size:13px; color:var(--ink-soft);"><span id="join-misses">0</span> / 6 wrong</span>
+      </div>
+      <div id="join-word-display" class="hg-word-display" style="justify-content:center; margin-bottom:12px;"></div>
+      <div id="join-feedback" class="hg-feedback" style="text-align:center; margin-bottom:10px;"></div>
+      <div id="join-keyboard" class="hg-keyboard"></div>
+    </div>
+
+    <!-- STEP 4: this student is done with the current word, others still going -->
+    <div id="join-waiting-others-step" style="display:none;">
+      <div style="font-size:38px; margin-bottom:10px;">⏳</div>
+      <h1 style="font-size:20px; margin-bottom:8px;" id="join-waiting-others-title">Nice work!</h1>
+      <p style="color:var(--ink-soft); font-size:14px;">Waiting for the rest of the class to finish this word…</p>
+    </div>
+
+    <!-- STEP 5: whole round is over -->
+    <div id="join-done-step" style="display:none;">
+      <div style="font-size:38px; margin-bottom:10px;">🏁</div>
+      <h1 style="font-size:20px; margin-bottom:8px;">That's the round!</h1>
+      <p style="color:var(--ink-soft); font-size:14px;">Check your teacher's screen to see how the class did.</p>
     </div>
 
   </div>
@@ -79,6 +97,114 @@
     const errorEl = document.getElementById('join-error');
     errorEl.textContent = message;
     errorEl.style.display = 'block';
+  }
+
+  function hideAllJoinSteps(){
+    ['join-form-step','join-waiting-step','join-play-step','join-waiting-others-step','join-done-step']
+      .forEach(id => document.getElementById(id).style.display = 'none');
+  }
+
+  /* ============ live game state for this student ============ */
+  let joinLobbyRow = null;   // latest known lobbies row: { id, words, current_word_index, status, ... }
+  let joinPlayer = null;     // { id, name }
+  let joinGuessed = [];
+  let joinMisses = 0;
+  let joinDone = false;
+
+  function joinCurrentWord(){
+    const words = (joinLobbyRow && joinLobbyRow.words) || [];
+    return words[joinLobbyRow.current_word_index || 0] || '';
+  }
+
+  function joinRenderWord(){
+    const word = joinCurrentWord();
+    document.getElementById('join-word-display').innerHTML = word.split('').map(ch =>
+      '<div class="hg-letter-box">' + (joinGuessed.includes(ch) ? ch : '') + '</div>'
+    ).join('');
+  }
+
+  function joinRenderKeyboard(){
+    const kb = document.getElementById('join-keyboard');
+    kb.innerHTML = '';
+    'abcdefghijklmnopqrstuvwxyz'.split('').forEach(letter => {
+      const btn = document.createElement('button');
+      btn.className = 'hg-key';
+      btn.textContent = letter;
+      if(joinGuessed.includes(letter)) btn.disabled = true;
+      btn.onclick = () => joinGuess(letter, btn);
+      kb.appendChild(btn);
+    });
+  }
+
+  async function joinGuess(letter, btn){
+    if(joinDone || joinGuessed.includes(letter)) return;
+    joinGuessed.push(letter);
+    btn.disabled = true;
+
+    const word = joinCurrentWord();
+    let won = false;
+
+    if(word.includes(letter)){
+      btn.classList.add('correct');
+      joinRenderWord();
+      won = word.split('').every(ch => joinGuessed.includes(ch));
+    } else {
+      btn.classList.add('wrong');
+      joinMisses++;
+      document.getElementById('join-misses').textContent = joinMisses;
+    }
+
+    joinDone = won || joinMisses >= 6;
+
+    const fb = document.getElementById('join-feedback');
+    if(joinDone){
+      document.querySelectorAll('#join-keyboard .hg-key').forEach(k => k.disabled = true);
+      if(won){
+        fb.textContent = '🎉 You got it!';
+        fb.className = 'hg-feedback win';
+      } else {
+        document.getElementById('join-word-display').innerHTML =
+          word.split('').map(ch => '<div class="hg-letter-box">' + ch + '</div>').join('');
+        fb.textContent = '💀 Out of guesses. The word was "' + word + '"';
+        fb.className = 'hg-feedback lose';
+      }
+    }
+
+    // Push this guess up to Supabase -- this is the write the teacher's
+    // dashboard is subscribed to and renders live.
+    await window.LobbySupabase.upsertProgress(
+      joinLobbyRow.id,
+      joinPlayer.id,
+      joinPlayer.name,
+      joinLobbyRow.current_word_index || 0,
+      joinGuessed,
+      joinMisses,
+      joinDone,
+      won
+    );
+
+    if(joinDone){
+      setTimeout(() => {
+        hideAllJoinSteps();
+        document.getElementById('join-waiting-others-title').textContent = won ? 'Nice work!' : 'Word revealed!';
+        document.getElementById('join-waiting-others-step').style.display = 'block';
+      }, 900);
+    }
+  }
+
+  function joinStartWord(){
+    joinGuessed = [];
+    joinMisses = 0;
+    joinDone = false;
+    document.getElementById('join-misses').textContent = '0';
+    document.getElementById('join-word-idx').textContent = (joinLobbyRow.current_word_index || 0) + 1;
+    document.getElementById('join-word-total').textContent = (joinLobbyRow.words || []).length;
+    document.getElementById('join-feedback').textContent = '';
+    document.getElementById('join-feedback').className = 'hg-feedback';
+    joinRenderWord();
+    joinRenderKeyboard();
+    hideAllJoinSteps();
+    document.getElementById('join-play-step').style.display = 'block';
   }
 
   async function handleJoinSubmit(){
@@ -124,14 +250,26 @@
       return;
     }
 
+    joinLobbyRow = lobby;
+    joinPlayer = player;
+
     document.getElementById('join-player-name').textContent = name;
-    document.getElementById('join-form-step').style.display = 'none';
+    hideAllJoinSteps();
     document.getElementById('join-waiting-step').style.display = 'block';
 
     window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
-      if(updatedLobby.status === 'playing'){
-        document.getElementById('join-waiting-step').style.display = 'none';
-        document.getElementById('join-started-step').style.display = 'block';
+      const prevStatus = joinLobbyRow ? joinLobbyRow.status : null;
+      const prevWordIndex = joinLobbyRow ? joinLobbyRow.current_word_index : null;
+      joinLobbyRow = updatedLobby;
+
+      if(updatedLobby.status !== 'playing') return;
+
+      // Either the round just started, or the teacher advanced to a new
+      // word -- both mean "show this student the current word, fresh".
+      const justStarted = prevStatus !== 'playing';
+      const newWord = prevWordIndex !== updatedLobby.current_word_index;
+      if(justStarted || newWord){
+        joinStartWord();
       }
     });
   }
