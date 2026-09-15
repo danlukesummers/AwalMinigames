@@ -25,6 +25,22 @@
     slider.max = hgState.maxWords;
     if(parseInt(slider.value) > hgState.maxWords){ slider.value = hgState.maxWords; }
     hgUpdateCount(slider.value);
+    hgApplyPlanGating();
+  }
+
+  // AI topic generator is a paid-only feature. This keeps the UI in sync
+  // with the plan toggle -- locking the card and bumping anyone who was
+  // mid-setup on "ai" back to "random" if they downgrade.
+  function hgApplyPlanGating(){
+    const isPaid = hgState.plan === 'paid';
+    const aiCard = document.getElementById('hg-src-ai');
+    aiCard.classList.toggle('locked', !isPaid);
+    const lockNote = document.getElementById('hg-src-ai-lock');
+    if(lockNote) lockNote.style.display = isPaid ? 'none' : 'block';
+
+    if(!isPaid && hgState.source === 'ai'){
+      hgSetSource('random');
+    }
   }
 
   function hgUpdateCount(v){
@@ -36,6 +52,17 @@
   }
 
   function hgSetSource(src){
+    if(src === 'ai' && hgState.plan !== 'paid'){
+      const statusEl = document.getElementById('hg-ai-status');
+      // Show the upsell inside the AI panel even though it stays closed,
+      // by briefly opening it read-only isn't worth the complexity here --
+      // simplest honest UX is just to redirect and explain why.
+      document.getElementById('hg-start-error').textContent =
+        '✨ AI topic generator is a paid feature. Switch the demo account toggle to "Paid" to try it.';
+      document.getElementById('hg-start-error').style.display = 'block';
+      return;
+    }
+    document.getElementById('hg-start-error').style.display = 'none';
     hgState.source = src;
     ['random','teacher','ai'].forEach(s => {
       document.getElementById('hg-src-' + s).classList.toggle('active', s === src);
@@ -52,6 +79,12 @@
   }
 
   async function hgGenerateAI(){
+    if(hgState.plan !== 'paid'){
+      const statusEl0 = document.getElementById('hg-ai-status');
+      statusEl0.textContent = 'AI generation is a paid feature -- switch the demo toggle to "Paid" first.';
+      statusEl0.style.color = 'var(--coral-deep)';
+      return;
+    }
     const topic = document.getElementById('hg-ai-topic').value.trim();
     const level = document.getElementById('hg-ai-level').value;
     const statusEl = document.getElementById('hg-ai-status');
@@ -62,26 +95,22 @@
     statusEl.textContent = 'Asking AI for ' + hgState.count + ' ' + level + '-level words about "' + topic + '"…';
     let words = [];
     try{
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      // NOTE: this calls OUR OWN backend (/api/generate-words), not
+      // Anthropic directly. The Anthropic API key is a secret and must
+      // never be embedded in code that ships to the browser -- see
+      // api/generate-words.js, which is the only place it should live.
+      const res = await fetch('/api/generate-words', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 300,
-          messages: [{role:'user', content:
-            'Generate exactly ' + hgState.count + ' single English vocabulary words appropriate for CEFR level ' + level +
-            ' ESL students, on the topic of "' + topic + '". Words only, no phrases, no punctuation. ' +
-            'Respond ONLY with a JSON array of lowercase strings, nothing else, no markdown fences.'}]
-        })
+        body: JSON.stringify({ topic, level, count: hgState.count })
       });
+      if(!res.ok) throw new Error('Server responded ' + res.status);
       const data = await res.json();
-      const text = (data.content || []).map(b => b.text || '').join('');
-      const clean = text.replace(/```json|```/g,'').trim();
-      const parsed = JSON.parse(clean);
-      if(Array.isArray(parsed) && parsed.length){
-        words = parsed.map(w => String(w).toLowerCase().replace(/[^a-z]/g,'')).filter(Boolean).slice(0, hgState.count);
+      if(Array.isArray(data.words) && data.words.length){
+        words = data.words.map(w => String(w).toLowerCase().replace(/[^a-z]/g,'')).filter(Boolean).slice(0, hgState.count);
       }
     } catch(e){
+      console.error('[hgGenerateAI] error:', e);
       words = [];
     }
     if(words.length < hgState.count){
