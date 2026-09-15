@@ -6,8 +6,8 @@
   };
   const hgState = {
     plan: 'free',
-    maxWords: 6,
-    count: 6,
+    maxWords: 4,
+    count: 4,
     source: 'random',
     words: [],
     idx: 0,
@@ -18,7 +18,7 @@
 
   function hgSetPlan(plan){
     hgState.plan = plan;
-    hgState.maxWords = plan === 'paid' ? 12 : 6;
+    hgState.maxWords = plan === 'paid' ? 12 : 4;
     document.getElementById('hg-plan-free').classList.toggle('active', plan === 'free');
     document.getElementById('hg-plan-paid').classList.toggle('active', plan === 'paid');
     const slider = document.getElementById('hg-count');
@@ -28,9 +28,6 @@
     hgApplyPlanGating();
   }
 
-  // AI topic generator is a paid-only feature. This keeps the UI in sync
-  // with the plan toggle -- locking the card and bumping anyone who was
-  // mid-setup on "ai" back to "random" if they downgrade.
   function hgApplyPlanGating(){
     const isPaid = hgState.plan === 'paid';
     const aiCard = document.getElementById('hg-src-ai');
@@ -53,10 +50,6 @@
 
   function hgSetSource(src){
     if(src === 'ai' && hgState.plan !== 'paid'){
-      const statusEl = document.getElementById('hg-ai-status');
-      // Show the upsell inside the AI panel even though it stays closed,
-      // by briefly opening it read-only isn't worth the complexity here --
-      // simplest honest UX is just to redirect and explain why.
       document.getElementById('hg-start-error').textContent =
         '✨ AI topic generator is a paid feature. Switch the demo account toggle to "Paid" to try it.';
       document.getElementById('hg-start-error').style.display = 'block';
@@ -74,7 +67,7 @@
   function hgCheckTeacherWords(){
     const ta = document.getElementById('hg-teacher-words');
     if(!ta) return;
-    const words = ta.value.split('\\n').map(w => w.trim()).filter(Boolean);
+    const words = ta.value.split(/[\n,]+/).map(w => w.trim()).filter(Boolean);
     document.getElementById('hg-teacher-status').textContent = words.length + ' of ' + hgState.count + ' words entered';
   }
 
@@ -95,10 +88,6 @@
     statusEl.textContent = 'Asking AI for ' + hgState.count + ' ' + level + '-level words about "' + topic + '"…';
     let words = [];
     try{
-      // NOTE: this calls OUR OWN backend (/api/generate-words), not
-      // Anthropic directly. The Anthropic API key is a secret and must
-      // never be embedded in code that ships to the browser -- see
-      // api/generate-words.js, which is the only place it should live.
       const res = await fetch('/api/generate-words', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
@@ -114,7 +103,6 @@
       words = [];
     }
     if(words.length < hgState.count){
-      // fallback: pad with shuffled bank words so the demo always works offline
       const pool = HG_BANK.general.filter(w => !words.includes(w));
       const shuffled = pool.sort(() => Math.random() - 0.5);
       while(words.length < hgState.count && shuffled.length){
@@ -141,14 +129,14 @@
       words = shuffled.slice(0, hgState.count);
     } else if(hgState.source === 'teacher'){
       const ta = document.getElementById('hg-teacher-words');
-      words = ta.value.split('\\n').map(w => w.trim().toLowerCase()).filter(Boolean);
+      words = ta.value.split(/[\n,]+/).map(w => w.trim().toLowerCase()).filter(Boolean);
       if(words.length !== hgState.count){
         errEl.textContent = 'Please enter exactly ' + hgState.count + ' words (you have ' + words.length + ').';
         errEl.style.display = 'block';
         return;
       }
       if(words.some(w => !/^[a-z]+$/.test(w))){
-        errEl.textContent = 'Words should only contain letters, one per line.';
+        errEl.textContent = 'Words should only contain letters, separated by commas or lines.';
         errEl.style.display = 'block';
         return;
       }
@@ -176,7 +164,6 @@
       hgOpenRoom();
     }
   }
-
 
   function hgLoadWord(){
     hgState.guessed = [];
@@ -254,7 +241,6 @@
       fb.className = 'hg-feedback win';
       hgPlayWinAnimation(wordWrap);
     } else {
-      // reveal the word
       document.getElementById('hg-word-display').innerHTML = word.split('').map(ch => '<div class="hg-letter-box">' + ch + '</div>').join('');
       fb.textContent = '💀 Out of guesses. The word was "' + word + '"';
       fb.className = 'hg-feedback lose';
@@ -266,9 +252,6 @@
     document.getElementById('hg-next-wrap').style.display = 'block';
   }
 
-  // Shared win/lose animation helpers -- used by solo play and every
-  // dashboard student card. `container` needs position:relative (or already
-  // has it via its own class) so the confetti/flash overlays sit correctly.
   function hgPlayWinAnimation(container){
     container.classList.add('hg-anim-win');
     setTimeout(() => container.classList.remove('hg-anim-win'), 550);
@@ -334,32 +317,15 @@
     document.getElementById('hg-setup').style.display = 'block';
   }
 
-
   /* ============ CLASSROOM ROOM MODE ============ */
-  /* Live classroom rooms are backed by real Supabase tables + Realtime (see
-     supabase-client.js, lobby.js, and the schema files). Room creation,
-     joining, and gameplay are all genuinely real now:
-
-     - A student on a different device typing in the room code actually
-       joins this exact room and the teacher sees them appear live.
-     - Once "Begin round" is clicked, each student plays the word on their
-       OWN device (see join.html), and every letter they guess is written to
-       the `lobby_progress` table in Supabase.
-     - This dashboard subscribes to that same table and renders whichever
-       student's card just changed -- there is no bot standing in for
-       anyone anymore.
-     - "Next word" advances `lobbies.current_word_index`, which every
-       student's browser is also watching, so the whole class moves on
-       together. */
-
   const HG_STUDENT_COLORS = ['#00F3FF', '#39FF14', '#A855F7', '#FFB020'];
   const hgRoom = {
     code: null,
-    students: [], // { id, name, color, guessed:[], misses:0, done:false, won:false }
+    students: [],
   };
-  let hgLobby = null;          // the Supabase row for this room: { id, code, status, players, words, current_word_index, ... }
-  let hgLobbyChannel = null;   // realtime subscription on the lobby row itself (players joining, round starting)
-  let hgProgressChannel = null; // realtime subscription on lobby_progress (live per-student guesses)
+  let hgLobby = null;
+  let hgLobbyChannel = null;
+  let hgProgressChannel = null;
 
   async function hgOpenRoom(){
     hgRoom.students = [];
@@ -370,8 +336,6 @@
     hgRenderRoster();
 
     if(!window.LobbySupabase){
-      // lobby.js is a module and browsers defer those -- in the extremely
-      // unlikely case this fires before it's finished loading, wait for it.
       await new Promise(resolve => {
         const check = setInterval(() => {
           if(window.LobbySupabase){ clearInterval(check); resolve(); }
@@ -494,9 +458,6 @@
 
     hgRoom.students.forEach(s => hgRenderDashboardCard(s, word));
 
-    // Catch up on anything that already landed before this subscription/
-    // render happened (e.g. a very fast student). The live subscription
-    // above keeps everything correct after this point regardless.
     if(hgLobby){
       window.LobbySupabase.fetchProgress(hgLobby.id, hgState.idx).then(rows => {
         rows.forEach(row => hgApplyProgressRow(row));
@@ -504,8 +465,6 @@
     }
   }
 
-  // Applies one student's live progress row (from Supabase) onto their
-  // dashboard card. This is what replaces the old bot simulation.
   function hgApplyProgressRow(row){
     const student = hgRoom.students.find(s => s.id === row.player_id);
     if(!student || student.done) return;
