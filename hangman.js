@@ -238,7 +238,7 @@ function hgShowHint(customHintText){
   }
 }
 
-async function hgSendBroadcastHint(){
+async function hgSendBroadcastHint(event){
   if(!hgLobby || !window.supabase) return;
   const currentWord = hgState.words[hgState.idx];
   const hint = HG_HINTS[currentWord] || ('Starts with "' + currentWord.charAt(0).toUpperCase() + '" and ends with "' + currentWord.charAt(currentWord.length - 1).toUpperCase() + '".');
