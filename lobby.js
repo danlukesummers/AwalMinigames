@@ -1,16 +1,5 @@
 // lobby.js
-//
-// Real live-lobby logic backed by Supabase (replaces the old client-only
-// simulation). This is an ES module (needed for the `import` below), but
-// hangman.js and join.html's inline script are plain classic scripts --
-// classic scripts can't `import` anything. So this file exposes everything
-// through `window.LobbySupabase`, which those classic scripts call instead.
-//
-// Load order doesn't matter much here: this is a <script type="module">,
-// which browsers always defer until after the HTML is parsed, and every
-// function below is only ever actually invoked later, in response to a user
-// action (clicking "Create room", clicking "Join") -- by which time this
-// module has long finished loading.
+// Real live-lobby logic backed by Supabase.
 
 import { supabase } from './supabase-client.js';
 
@@ -22,7 +11,6 @@ function makePlayerId(){
   if(window.crypto && typeof window.crypto.randomUUID === 'function'){
     return window.crypto.randomUUID();
   }
-  // fallback for older browsers without crypto.randomUUID
   return 'player-' + Date.now() + '-' + Math.random().toString(16).slice(2);
 }
 
@@ -40,7 +28,7 @@ async function createLobby(game){
     console.error('[LobbySupabase] createLobby error:', error);
     return null;
   }
-  return data; // { id, code, game, status, players, words, current_word_index, created_at }
+  return data;
 }
 
 async function startLobbyGame(lobbyId, words){
@@ -56,9 +44,6 @@ async function startLobbyGame(lobbyId, words){
   return true;
 }
 
-// Called by the teacher's "Next word" button. Every student's browser is
-// subscribed to this same lobby row, so bumping this column is literally
-// what moves the whole class on to the next word together.
 async function setLobbyWordIndex(lobbyId, wordIndex){
   const { error } = await supabase
     .from('lobbies')
@@ -85,22 +70,10 @@ async function findLobbyByCode(code){
     console.error('[LobbySupabase] findLobbyByCode error:', error);
     return null;
   }
-  return data; // null if no lobby matches that code
+  return data;
 }
 
 async function joinLobby(lobbyId, playerName){
-  // Fetch-then-append-then-write. This is fine at classroom scale (a
-  // handful of students joining over a few seconds), but it is NOT
-  // race-safe: two students submitting in the exact same instant could
-  // both read the same `players` array and overwrite each other's entry.
-  // For anything beyond a small live classroom, replace this with a
-  // Postgres function (RPC) that does the append atomically in one
-  // statement, e.g.:
-  //
-  //   update lobbies set players = players || jsonb_build_array(...)
-  //   where id = ...
-  //
-  // called via `supabase.rpc('join_lobby', { lobby_id, player_name })`.
   const { data: lobby, error: fetchError } = await supabase
     .from('lobbies')
     .select('players')
@@ -129,10 +102,6 @@ async function joinLobby(lobbyId, playerName){
 }
 
 /* ============ SHARED: per-student live guessing progress ============ */
-//
-// One row per (lobby, student, word) -- see supabase-schema-progress.sql.
-// The student's own browser owns writes to their row; the teacher's
-// dashboard and (in principle) other students only ever read.
 
 async function upsertProgress(lobbyId, playerId, playerName, wordIndex, guessed, misses, done, won){
   const { error } = await supabase
@@ -156,8 +125,6 @@ async function upsertProgress(lobbyId, playerId, playerName, wordIndex, guessed,
   return true;
 }
 
-// One-time catch-up read, used right after the dashboard subscribes -- in
-// case a fast student already guessed before the subscription was live.
 async function fetchProgress(lobbyId, wordIndex){
   const { data, error } = await supabase
     .from('lobby_progress')
@@ -172,9 +139,6 @@ async function fetchProgress(lobbyId, wordIndex){
   return data;
 }
 
-// Fires `onChange(row)` any time any student's progress row for this lobby
-// is inserted or updated (covers both their very first guess and every
-// guess after that).
 function subscribeToProgress(lobbyId, onChange){
   const channel = supabase
     .channel('progress-' + lobbyId)
@@ -189,11 +153,6 @@ function subscribeToProgress(lobbyId, onChange){
 
 /* ============ SHARED: realtime ============ */
 
-// Fires `onUpdate(newRow)` any time this lobby's row changes (a student
-// joining changes `players`; the teacher starting the round changes
-// `status`; the teacher clicking "Next word" changes `current_word_index`).
-// Both the teacher view and the student view use this same function --
-// they just react to different fields in the payload.
 function subscribeToLobby(lobbyId, onUpdate){
   const channel = supabase
     .channel('lobby-' + lobbyId)
@@ -202,6 +161,14 @@ function subscribeToLobby(lobbyId, onUpdate){
       { event: 'UPDATE', schema: 'public', table: 'lobbies', filter: 'id=eq.' + lobbyId },
       (payload) => onUpdate(payload.new)
     )
+    .subscribe();
+  return channel;
+}
+
+function listenForBroadcasts(lobbyId, onBroadcast){
+  const channel = supabase
+    .channel('broadcasts-' + lobbyId)
+    .on('broadcast', { event: 'teacher_hint' }, (payload) => onBroadcast(payload))
     .subscribe();
   return channel;
 }
@@ -220,5 +187,6 @@ window.LobbySupabase = {
   fetchProgress,
   subscribeToProgress,
   subscribeToLobby,
+  listenForBroadcasts,
   unsubscribe,
 };
