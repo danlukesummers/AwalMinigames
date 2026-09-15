@@ -73,14 +73,14 @@
           <div class="hg-plan-row">
             <span style="font-weight:700; font-size:14px;">Demo account:</span>
             <div class="toggle">
-              <button id="hg-plan-free" class="active" onclick="hgSetPlan('free')">Free (6 words)</button>
+              <button id="hg-plan-free" class="active" onclick="hgSetPlan('free')">Free (4 words)</button>
               <button id="hg-plan-paid" onclick="hgSetPlan('paid')">Paid (12 words)</button>
             </div>
           </div>
 
           <div class="field" style="max-width:320px;">
-            <label>Words in this game (<span id="hg-count-label">6</span>)</label>
-            <input type="range" id="hg-count" min="3" max="6" value="6" oninput="hgUpdateCount(this.value)" style="width:100%;">
+            <label>Words in this game (<span id="hg-count-label">4</span>)</label>
+            <input type="range" id="hg-count" min="1" max="4" value="4" oninput="hgUpdateCount(this.value)" style="width:100%;">
           </div>
 
           <div class="hg-source-grid">
@@ -103,13 +103,13 @@
           </div>
 
           <div id="hg-src-panel-random" class="hg-src-panel">
-            <p style="color:var(--ink-soft); font-size:14px;">We'll pick <strong id="hg-rand-count">6</strong> random words for you — ready instantly, no setup needed.</p>
+            <p style="color:var(--ink-soft); font-size:14px;">We'll pick <strong id="hg-rand-count">4</strong> random words for you — ready instantly, no setup needed.</p>
           </div>
 
           <div id="hg-src-panel-teacher" class="hg-src-panel" style="display:none;">
-            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:8px;">Enter one word per line</label>
-            <textarea id="hg-teacher-words" rows="6" placeholder="banana&#10;umbrella&#10;bicycle&#10;..." style="width:100%; padding:14px 16px; border-radius:12px; border:3px solid var(--ink); font-family:'Space Grotesk'; font-size:14.5px; resize:vertical;"></textarea>
-            <p id="hg-teacher-status" style="font-size:13px; color:var(--ink-soft); margin-top:8px;">0 of <span id="hg-teacher-need">6</span> words entered</p>
+            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:8px;">Enter words (separated by commas or lines)</label>
+            <textarea id="hg-teacher-words" rows="6" placeholder="banana, umbrella, bicycle&#10;or&#10;banana&#10;umbrella&#10;bicycle" style="width:100%; padding:14px 16px; border-radius:12px; border:3px solid var(--ink); font-family:'Space Grotesk'; font-size:14.5px; resize:vertical;"></textarea>
+            <p id="hg-teacher-status" style="font-size:13px; color:var(--ink-soft); margin-top:8px;">0 of <span id="hg-teacher-need">4</span> words entered</p>
           </div>
 
           <div id="hg-src-panel-ai" class="hg-src-panel" style="display:none;">
@@ -223,7 +223,6 @@
   </div>
 </div>
 
-
 <footer>
   <div class="wrap" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; width:100%;">
     <a href="index.html" class="logo" style="text-decoration:none;color:inherit;"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL</a>
@@ -234,7 +233,5 @@
 <script type="module" src="lobby.js"></script>
 <script src="main.js"></script>
 <script src="hangman.js"></script>
-</body>
-</html>
 </body>
 </html>
