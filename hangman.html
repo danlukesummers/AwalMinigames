@@ -139,7 +139,7 @@
         <div id="hg-room" class="hg-panel" style="display:none;">
           <div style="text-align:center; margin-bottom:24px;">
             <h2 style="font-size:22px; margin-bottom:6px;">Your classroom room is live</h2>
-            <p style="color:var(--ink-soft); font-size:14px;">Share the code or link below. Up to 4 students can join this round.</p>
+            <p style="color:var(--ink-soft); font-size:14px;">Share the code or link below for students to join this round.</p>
           </div>
 
           <div class="code-box" style="max-width:320px; margin:0 auto 20px;">
@@ -149,7 +149,7 @@
 
           <div class="copy-field-label" style="text-align:center;">Student link</div>
           <div class="copy-field" style="max-width:420px; margin:0 auto 24px;">
-            <span id="hg-room-link" class="mono">https://chatterboxgames.app/join/0000</span>
+            <span id="hg-room-link" class="mono">...</span>
             <button onclick="hgCopyRoomLink()" id="hg-room-copy-btn">Copy</button>
           </div>
 
@@ -184,10 +184,12 @@
           <div class="hg-play-grid">
             <div class="hg-figure-wrap">
               <svg id="hg-figure" viewBox="0 0 200 220" width="100%" style="max-width:220px;">
+                <!-- Base Structure -->
                 <line x1="20" y1="210" x2="140" y2="210" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/>
                 <line x1="50" y1="210" x2="50" y2="20" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/>
                 <line x1="50" y1="20" x2="130" y2="20" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/>
                 <line x1="130" y1="20" x2="130" y2="45" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/>
+                <!-- 6 Hangman Parts -->
                 <circle id="hg-part-head" cx="130" cy="62" r="17" fill="none" stroke="var(--coral)" stroke-width="4" style="display:none;"/>
                 <line id="hg-part-body" x1="130" y1="79" x2="130" y2="135" stroke="var(--coral)" stroke-width="4" stroke-linecap="round" style="display:none;"/>
                 <line id="hg-part-arm-l" x1="130" y1="95" x2="108" y2="120" stroke="var(--coral)" stroke-width="4" stroke-linecap="round" style="display:none;"/>
@@ -198,7 +200,7 @@
               <p class="mono" style="font-size:13px; color:var(--ink-soft); margin-top:8px;"><span id="hg-misses">0</span> / 6 wrong guesses</p>
             </div>
 
-            <div class="hg-word-wrap">
+            <div class="hg-word-wrap" style="position:relative;">
               <div id="hg-word-display" class="hg-word-display"></div>
               <div id="hg-feedback" class="hg-feedback"></div>
               <div id="hg-keyboard" class="hg-keyboard"></div>
