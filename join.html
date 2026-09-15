@@ -131,6 +131,7 @@
   let joinGuessed = [];
   let joinMisses = 0;
   let joinDone = false;
+  let joinBroadcastChannel = null;
   const JOIN_PARTS = ['head','body','arm-l','arm-r','leg-l','leg-r'];
 
   function joinCurrentWord(){
@@ -304,13 +305,18 @@
     hideAllJoinSteps();
     document.getElementById('join-waiting-step').style.display = 'block';
 
-    // Realtime broadcast listener for teacher hints
-    if(window.LobbySupabase.listenForBroadcasts){
-      window.LobbySupabase.listenForBroadcasts(lobby.id, (payload) => {
-        if(payload && payload.payload && payload.payload.hint){
-          showTeacherHint(payload.payload.hint);
-        }
-      });
+    // Realtime broadcast listener for teacher hints using standard supabase channel subscription
+    if(window.supabase){
+      if(joinBroadcastChannel){
+        window.supabase.removeChannel(joinBroadcastChannel);
+      }
+      joinBroadcastChannel = window.supabase.channel('lobby-' + lobby.id)
+        .on('broadcast', { event: 'teacher_hint' }, (payload) => {
+          if(payload && payload.payload && payload.payload.hint){
+            showTeacherHint(payload.payload.hint);
+          }
+        })
+        .subscribe();
     }
 
     // Subscribe to lobby state changes
