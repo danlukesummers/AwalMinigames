@@ -7,6 +7,20 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<style>
+  .hg-source-card{ position:relative; }
+  .hg-source-card.locked{ opacity:0.55; cursor:not-allowed; }
+  .hg-source-card.locked:hover{ transform:none !important; box-shadow:none !important; }
+  .hg-src-lock{
+    display:none; margin-top:8px; font-size:12px; font-weight:700;
+    color:var(--coral-deep); letter-spacing:0.02em;
+  }
+  .hg-paid-pill{
+    display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:0.04em;
+    background:var(--sunshine, #FFD23F); color:var(--ink); border-radius:999px;
+    padding:2px 8px; margin-left:8px; vertical-align:middle;
+  }
+</style>
 </head>
 <body>
 <header>
@@ -80,10 +94,11 @@
               <h3 style="font-size:16px; margin-bottom:6px;">Teacher selected</h3>
               <p style="color:var(--ink-soft); font-size:13.5px;">Type your own word list for this class.</p>
             </div>
-            <div class="hg-source-card" id="hg-src-ai" onclick="hgSetSource('ai')">
+            <div class="hg-source-card locked" id="hg-src-ai" onclick="hgSetSource('ai')">
               <div class="hg-src-num">3</div>
-              <h3 style="font-size:16px; margin-bottom:6px;">AI topic generator</h3>
+              <h3 style="font-size:16px; margin-bottom:6px;">AI topic generator <span class="hg-paid-pill">PAID</span></h3>
               <p style="color:var(--ink-soft); font-size:13.5px;">Give a topic + level, AI builds the list.</p>
+              <p class="hg-src-lock" id="hg-src-ai-lock" style="display:block;">🔒 Upgrade to Unlimited to unlock this</p>
             </div>
           </div>
 
@@ -219,5 +234,7 @@
 <script type="module" src="lobby.js"></script>
 <script src="main.js"></script>
 <script src="hangman.js"></script>
+</body>
+</html>
 </body>
 </html>
