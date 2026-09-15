@@ -43,10 +43,35 @@
 
     <!-- STEP 3: live play -- student guesses letters here, on their own device -->
     <div id="join-play-step" style="display:none; text-align:left;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
         <span class="mono" style="font-size:13px; color:var(--ink-soft);">Word <span id="join-word-idx">1</span> / <span id="join-word-total">–</span></span>
         <span class="mono" style="font-size:13px; color:var(--ink-soft);"><span id="join-misses">0</span> / 6 wrong</span>
       </div>
+
+      <!-- Hint UI -->
+      <div id="join-hint-wrap" style="text-align:center; margin-bottom: 12px;">
+        <button id="join-hint-btn" class="btn btn-ghost btn-sm" onclick="handleStudentHintClick()">💡 Need a hint?</button>
+        <p id="join-hint-text" style="display:none; font-size:13px; font-weight:600; color:var(--purple); margin-top:6px; background:rgba(168,85,247,0.1); padding:6px 10px; border-radius:8px;"></p>
+      </div>
+
+      <!-- SVG Hangman Gallows Visual -->
+      <div class="hg-figure-wrap" style="text-align:center; margin-bottom:14px;">
+        <svg id="join-figure" viewBox="0 0 200 220" width="100%" style="max-width:160px; margin:0 auto; display:block;">
+          <line x1="20" y1="210" x2="140" y2="210" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/>
+          <line x1="50" y1="210" x2="50" y2="20" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/>
+          <line x1="50" y1="20" x2="130" y2="20" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/>
+          <line x1="130" y1="20" x2="130" y2="45" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/>
+
+          <!-- 6 Body Parts -->
+          <circle id="join-part-head" cx="130" cy="62" r="17" fill="none" stroke="var(--coral)" stroke-width="4" style="display:none;"/>
+          <line id="join-part-body" x1="130" y1="79" x2="130" y2="135" stroke="var(--coral)" stroke-width="4" stroke-linecap="round" style="display:none;"/>
+          <line id="join-part-arm-l" x1="130" y1="95" x2="108" y2="120" stroke="var(--coral)" stroke-width="4" stroke-linecap="round" style="display:none;"/>
+          <line id="join-part-arm-r" x1="130" y1="95" x2="152" y2="120" stroke="var(--coral)" stroke-width="4" stroke-linecap="round" style="display:none;"/>
+          <line id="join-part-leg-l" x1="130" y1="135" x2="112" y2="170" stroke="var(--coral)" stroke-width="4" stroke-linecap="round" style="display:none;"/>
+          <line id="join-part-leg-r" x1="130" y1="135" x2="150" y2="170" stroke="var(--coral)" stroke-width="4" stroke-linecap="round" style="display:none;"/>
+        </svg>
+      </div>
+
       <div id="join-word-display" class="hg-word-display" style="justify-content:center; margin-bottom:12px;"></div>
       <div id="join-feedback" class="hg-feedback" style="text-align:center; margin-bottom:10px;"></div>
       <div id="join-keyboard" class="hg-keyboard"></div>
@@ -75,9 +100,7 @@
 
 <script type="module" src="lobby.js"></script>
 <script>
-  // Pre-fill the code if this page was opened via a shared link like
-  // join.html?code=123456 (this is exactly the link the teacher's room
-  // screen generates and copies).
+  // Pre-fill code if opened via shared link
   window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
@@ -104,16 +127,69 @@
       .forEach(id => document.getElementById(id).style.display = 'none');
   }
 
+  /* ============ HINT DICTIONARY ============ */
+  const JOIN_HINTS = {
+    "banana": "A yellow tropical fruit rich in potassium.",
+    "umbrella": "Used to stay dry when it rains.",
+    "bicycle": "A two-wheeled vehicle you pedal.",
+    "mountain": "A very tall, steep natural elevation of the earth.",
+    "kitchen": "The room in a house where food is cooked.",
+    "elephant": "The largest living land mammal, known for its trunk.",
+    "holiday": "A time of rest or vacation away from school/work.",
+    "sandwich": "Food placed between two slices of bread.",
+    "airport": "A complex where airplanes take off and land.",
+    "calendar": "A chart showing days, weeks, and months of a year.",
+    "hospital": "An institution where sick or injured people receive medical care.",
+    "pyjamas": "Clothes worn for sleeping.",
+    "dolphin": "An intelligent marine mammal with a curved beak.",
+    "backpack": "A bag carried on your back using straps.",
+    "library": "A place containing books and resources to read or borrow.",
+    "weather": "The day-to-day state of the atmosphere (rain, heat, wind).",
+    "birthday": "The anniversary of the day on which a person was born.",
+    "suitcase": "A luggage case used to pack clothes for traveling.",
+    "envelope": "A paper container used to enclose letters.",
+    "volcano": "A mountain with a crater that spews lava and ash."
+  };
+
   /* ============ live game state for this student ============ */
-  let joinLobbyRow = null;   // latest known lobbies row: { id, words, current_word_index, status, ... }
+  let joinLobbyRow = null;   // { id, words, current_word_index, status, ... }
   let joinPlayer = null;     // { id, name }
   let joinGuessed = [];
   let joinMisses = 0;
   let joinDone = false;
+  const JOIN_PARTS = ['head','body','arm-l','arm-r','leg-l','leg-r'];
 
   function joinCurrentWord(){
     const words = (joinLobbyRow && joinLobbyRow.words) || [];
     return words[joinLobbyRow.current_word_index || 0] || '';
+  }
+
+  function showStudentHint(customHintText){
+    const currentWord = joinCurrentWord();
+    const hintTextEl = document.getElementById('join-hint-text');
+    const hintBtnEl = document.getElementById('join-hint-btn');
+
+    const hint = customHintText || JOIN_HINTS[currentWord] ||
+      ('Starts with "' + currentWord.charAt(0).toUpperCase() + '" and ends with "' + currentWord.charAt(currentWord.length - 1).toUpperCase() + '".');
+
+    if(hintTextEl){
+      hintTextEl.textContent = '💡 Hint: ' + hint;
+      hintTextEl.style.display = 'block';
+    }
+    if(hintBtnEl){
+      hintBtnEl.disabled = true;
+    }
+  }
+
+  function handleStudentHintClick(){
+    showStudentHint();
+  }
+
+  function updateGallowsVisual(missCount){
+    JOIN_PARTS.forEach((part, idx) => {
+      const el = document.getElementById('join-part-' + part);
+      if(el) el.style.display = idx < missCount ? 'block' : 'none';
+    });
   }
 
   function joinRenderWord(){
@@ -152,6 +228,7 @@
       btn.classList.add('wrong');
       joinMisses++;
       document.getElementById('join-misses').textContent = joinMisses;
+      updateGallowsVisual(joinMisses);
     }
 
     joinDone = won || joinMisses >= 6;
@@ -170,8 +247,7 @@
       }
     }
 
-    // Push this guess up to Supabase -- this is the write the teacher's
-    // dashboard is subscribed to and renders live.
+    // Push progress write up to Supabase
     await window.LobbySupabase.upsertProgress(
       joinLobbyRow.id,
       joinPlayer.id,
@@ -196,6 +272,14 @@
     joinGuessed = [];
     joinMisses = 0;
     joinDone = false;
+
+    // Reset Hint UI & Gallows
+    const hintBtn = document.getElementById('join-hint-btn');
+    const hintText = document.getElementById('join-hint-text');
+    if(hintBtn) hintBtn.disabled = false;
+    if(hintText){ hintText.style.display = 'none'; hintText.textContent = ''; }
+    updateGallowsVisual(0);
+
     document.getElementById('join-misses').textContent = '0';
     document.getElementById('join-word-idx').textContent = (joinLobbyRow.current_word_index || 0) + 1;
     document.getElementById('join-word-total').textContent = (joinLobbyRow.words || []).length;
@@ -257,6 +341,16 @@
     hideAllJoinSteps();
     document.getElementById('join-waiting-step').style.display = 'block';
 
+    // Subscribe to realtime broadcasts for live teacher hints
+    if(window.LobbySupabase.listenForBroadcasts){
+      window.LobbySupabase.listenForBroadcasts(lobby.id, (payload) => {
+        if(payload && payload.payload && payload.payload.hint){
+          showStudentHint(payload.payload.hint);
+        }
+      });
+    }
+
+    // Subscribe to lobby updates
     window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
       const prevStatus = joinLobbyRow ? joinLobbyRow.status : null;
       const prevWordIndex = joinLobbyRow ? joinLobbyRow.current_word_index : null;
@@ -264,8 +358,6 @@
 
       if(updatedLobby.status !== 'playing') return;
 
-      // Either the round just started, or the teacher advanced to a new
-      // word -- both mean "show this student the current word, fresh".
       const justStarted = prevStatus !== 'playing';
       const newWord = prevWordIndex !== updatedLobby.current_word_index;
       if(justStarted || newWord){
@@ -276,4 +368,5 @@
 </script>
 
 </body>
+</html>
 </html>
