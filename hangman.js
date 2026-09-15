@@ -535,7 +535,7 @@ function hgLoadDashboardWord(){
 
   // Render using standard native button/badge classes matching site styling
   hintWrap.innerHTML = `
-    <button id="hg-dash-hint-btn" class="hg-btn-secondary" onclick="hgSendBroadcastHint(event)">💡 Broadcast Hint to Class</button>
+    <button id="hg-dash-hint-btn" class="btn btn-ghost btn-sm" onclick="hgSendBroadcastHint(event)">💡 Broadcast Hint to Class</button>
     <span id="hg-dash-hint-display" style="font-size: 0.9rem; opacity: 0.7; font-family: monospace;"></span>
   `;
 
