@@ -48,10 +48,9 @@
         <span class="mono" style="font-size:13px; color:var(--ink-soft);"><span id="join-misses">0</span> / 6 wrong</span>
       </div>
 
-      <!-- Hint UI -->
-      <div id="join-hint-wrap" style="text-align:center; margin-bottom: 12px;">
-        <button id="join-hint-btn" class="btn btn-ghost btn-sm" onclick="handleStudentHintClick()">💡 Need a hint?</button>
-        <p id="join-hint-text" style="display:none; font-size:13px; font-weight:600; color:var(--purple); margin-top:6px; background:rgba(168,85,247,0.1); padding:6px 10px; border-radius:8px;"></p>
+      <!-- Hint UI (Only displayed when broadcasted by the teacher) -->
+      <div id="join-hint-wrap" style="text-align:center; margin-bottom: 12px; display:none;">
+        <p id="join-hint-text" style="font-size:13px; font-weight:600; color:var(--purple); margin:0; background:rgba(168,85,247,0.1); padding:8px 12px; border-radius:8px; border:1px solid rgba(168,85,247,0.2);"></p>
       </div>
 
       <!-- SVG Hangman Gallows Visual -->
@@ -100,7 +99,6 @@
 
 <script type="module" src="lobby.js"></script>
 <script>
-  // Pre-fill code if opened via shared link
   window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
@@ -127,30 +125,6 @@
       .forEach(id => document.getElementById(id).style.display = 'none');
   }
 
-  /* ============ HINT DICTIONARY ============ */
-  const JOIN_HINTS = {
-    "banana": "A yellow tropical fruit rich in potassium.",
-    "umbrella": "Used to stay dry when it rains.",
-    "bicycle": "A two-wheeled vehicle you pedal.",
-    "mountain": "A very tall, steep natural elevation of the earth.",
-    "kitchen": "The room in a house where food is cooked.",
-    "elephant": "The largest living land mammal, known for its trunk.",
-    "holiday": "A time of rest or vacation away from school/work.",
-    "sandwich": "Food placed between two slices of bread.",
-    "airport": "A complex where airplanes take off and land.",
-    "calendar": "A chart showing days, weeks, and months of a year.",
-    "hospital": "An institution where sick or injured people receive medical care.",
-    "pyjamas": "Clothes worn for sleeping.",
-    "dolphin": "An intelligent marine mammal with a curved beak.",
-    "backpack": "A bag carried on your back using straps.",
-    "library": "A place containing books and resources to read or borrow.",
-    "weather": "The day-to-day state of the atmosphere (rain, heat, wind).",
-    "birthday": "The anniversary of the day on which a person was born.",
-    "suitcase": "A luggage case used to pack clothes for traveling.",
-    "envelope": "A paper container used to enclose letters.",
-    "volcano": "A mountain with a crater that spews lava and ash."
-  };
-
   /* ============ live game state for this student ============ */
   let joinLobbyRow = null;   // { id, words, current_word_index, status, ... }
   let joinPlayer = null;     // { id, name }
@@ -164,25 +138,14 @@
     return words[joinLobbyRow.current_word_index || 0] || '';
   }
 
-  function showStudentHint(customHintText){
-    const currentWord = joinCurrentWord();
+  function showTeacherHint(hintText){
+    const hintWrap = document.getElementById('join-hint-wrap');
     const hintTextEl = document.getElementById('join-hint-text');
-    const hintBtnEl = document.getElementById('join-hint-btn');
 
-    const hint = customHintText || JOIN_HINTS[currentWord] ||
-      ('Starts with "' + currentWord.charAt(0).toUpperCase() + '" and ends with "' + currentWord.charAt(currentWord.length - 1).toUpperCase() + '".');
-
-    if(hintTextEl){
-      hintTextEl.textContent = '💡 Hint: ' + hint;
-      hintTextEl.style.display = 'block';
+    if(hintWrap && hintTextEl && hintText){
+      hintTextEl.textContent = '💡 Teacher Hint: ' + hintText;
+      hintWrap.style.display = 'block';
     }
-    if(hintBtnEl){
-      hintBtnEl.disabled = true;
-    }
-  }
-
-  function handleStudentHintClick(){
-    showStudentHint();
   }
 
   function updateGallowsVisual(missCount){
@@ -273,11 +236,11 @@
     joinMisses = 0;
     joinDone = false;
 
-    // Reset Hint UI & Gallows
-    const hintBtn = document.getElementById('join-hint-btn');
-    const hintText = document.getElementById('join-hint-text');
-    if(hintBtn) hintBtn.disabled = false;
-    if(hintText){ hintText.style.display = 'none'; hintText.textContent = ''; }
+    // Hide broadcasted hint box and reset gallows visual for the new word
+    const hintWrap = document.getElementById('join-hint-wrap');
+    const hintTextEl = document.getElementById('join-hint-text');
+    if(hintWrap) hintWrap.style.display = 'none';
+    if(hintTextEl) hintTextEl.textContent = '';
     updateGallowsVisual(0);
 
     document.getElementById('join-misses').textContent = '0';
@@ -341,16 +304,16 @@
     hideAllJoinSteps();
     document.getElementById('join-waiting-step').style.display = 'block';
 
-    // Subscribe to realtime broadcasts for live teacher hints
+    // Realtime broadcast listener for teacher hints
     if(window.LobbySupabase.listenForBroadcasts){
       window.LobbySupabase.listenForBroadcasts(lobby.id, (payload) => {
         if(payload && payload.payload && payload.payload.hint){
-          showStudentHint(payload.payload.hint);
+          showTeacherHint(payload.payload.hint);
         }
       });
     }
 
-    // Subscribe to lobby updates
+    // Subscribe to lobby state changes
     window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
       const prevStatus = joinLobbyRow ? joinLobbyRow.status : null;
       const prevWordIndex = joinLobbyRow ? joinLobbyRow.current_word_index : null;
@@ -368,5 +331,4 @@
 </script>
 
 </body>
-</html>
 </html>
