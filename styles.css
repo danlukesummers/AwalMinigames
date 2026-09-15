@@ -1364,3 +1364,21 @@
   border-color: var(--coral-deep) !important;
   background: rgba(255, 75, 75, 0.05);
 }
+
+#hg-hint-text {
+  transition: all 0.2s ease-in-out;
+  background: rgba(168, 85, 247, 0.08);
+  border: 2px dashed var(--purple);
+  padding: 8px 14px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+.hg-hint-pop {
+  animation: hgPopIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes hgPopIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
