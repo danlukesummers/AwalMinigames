@@ -4,6 +4,31 @@
 const HG_BANK = {
   general: ["banana","umbrella","bicycle","mountain","kitchen","elephant","holiday","sandwich","airport","calendar","hospital","pyjamas","dolphin","backpack","library","weather","birthday","suitcase","envelope","volcano"]
 };
+
+// Hints dictionary for word definitions
+const HG_HINTS = {
+  "banana": "A yellow tropical fruit rich in potassium.",
+  "umbrella": "Used to stay dry when it rains.",
+  "bicycle": "A two-wheeled vehicle you pedal.",
+  "mountain": "A very tall, steep natural elevation of the earth.",
+  "kitchen": "The room in a house where food is cooked.",
+  "elephant": "The largest living land mammal, known for its trunk.",
+  "holiday": "A time of rest or vacation away from school/work.",
+  "sandwich": "Food placed between two slices of bread.",
+  "airport": "A complex where airplanes take off and land.",
+  "calendar": "A chart showing days, weeks, and months of a year.",
+  "hospital": "An institution where sick or injured people receive medical care.",
+  "pyjamas": "Clothes worn for sleeping.",
+  "dolphin": "An intelligent marine mammal with a curved beak.",
+  "backpack": "A bag carried on your back using straps.",
+  "library": "A place containing books and resources to read or borrow.",
+  "weather": "The day-to-day state of the atmosphere (rain, heat, wind).",
+  "birthday": "The anniversary of the day on which a person was born.",
+  "suitcase": "A luggage case used to pack clothes for traveling.",
+  "envelope": "A paper container used to enclose letters.",
+  "volcano": "A mountain with a crater that spews lava and ash."
+};
+
 const hgState = {
   plan: 'free',
   maxWords: 4,
@@ -176,6 +201,12 @@ function hgLoadWord(){
   document.getElementById('hg-feedback').textContent = '';
   document.getElementById('hg-feedback').className = 'hg-feedback';
   document.getElementById('hg-next-wrap').style.display = 'none';
+
+  // Reset hint state
+  const hintBtn = document.getElementById('hg-hint-btn');
+  const hintText = document.getElementById('hg-hint-text');
+  if(hintBtn){ hintBtn.disabled = false; }
+  if(hintText){ hintText.style.display = 'none'; hintText.textContent = ''; }
   
   HG_PARTS.forEach(p => {
     const el = document.getElementById('hg-part-' + p);
@@ -184,6 +215,48 @@ function hgLoadWord(){
   
   hgRenderWord();
   hgRenderKeyboard();
+}
+
+/* ============ HINT LOGIC ============ */
+function hgShowHint(customHintText){
+  const currentWord = hgState.words[hgState.idx];
+  const hintTextEl = document.getElementById('hg-hint-text');
+  const hintBtnEl = document.getElementById('hg-hint-btn');
+  
+  const hint = customHintText || HG_HINTS[currentWord] || 
+    ('Starts with "' + currentWord.charAt(0).toUpperCase() + '" and ends with "' + currentWord.charAt(currentWord.length - 1).toUpperCase() + '".');
+  
+  if(hintTextEl){
+    hintTextEl.textContent = '💡 Hint: ' + hint;
+    hintTextEl.style.display = 'inline-block';
+    hintTextEl.classList.remove('hg-hint-pop');
+    void hintTextEl.offsetWidth; // Force reflow for animation reset
+    hintTextEl.classList.add('hg-hint-pop');
+  }
+  if(hintBtnEl){
+    hintBtnEl.disabled = true;
+  }
+}
+
+async function hgSendBroadcastHint(){
+  if(!hgLobby || !window.supabase) return;
+  const currentWord = hgState.words[hgState.idx];
+  const hint = HG_HINTS[currentWord] || ('Starts with "' + currentWord.charAt(0).toUpperCase() + '" and ends with "' + currentWord.charAt(currentWord.length - 1).toUpperCase() + '".');
+  
+  const channel = window.supabase.channel('lobby-' + hgLobby.id);
+  await channel.send({
+    type: 'broadcast',
+    event: 'teacher_hint',
+    payload: { hint }
+  });
+  
+  const btn = event?.target;
+  if(btn){
+    const orig = btn.textContent;
+    btn.textContent = 'Hint Broadcasted ✓';
+    btn.disabled = true;
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
+  }
 }
 
 function hgRenderWord(){
