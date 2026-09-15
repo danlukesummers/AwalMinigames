@@ -508,6 +508,10 @@ async function hgBeginRound(){
   }
 
   hgLoadDashboardWord();
+  let hintBtn = document.getElementById('hg-dash-hint-btn');
+if(hintBtn) {
+  hintBtn.addEventListener('click', hgSendBroadcastHint);
+}
 }
 
 function hgLoadDashboardWord(){
