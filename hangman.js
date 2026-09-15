@@ -516,25 +516,34 @@ function hgLoadDashboardWord(){
   document.getElementById('hg-dash-word-len').textContent = word.length;
   document.getElementById('hg-dash-next-btn').style.display = 'none';
 
-  // Ensure hint display area or broadcast control exists/resets in the dashboard header
+  // Find or create the teacher dashboard controls container matching the app's native UI
   let hintWrap = document.getElementById('hg-dash-hint-wrap');
   if(!hintWrap) {
-    const headerTop = document.querySelector('#hg-dashboard .hg-dash-header, #hg-dashboard') || document.getElementById('hg-dashboard');
     hintWrap = document.createElement('div');
     hintWrap.id = 'hg-dash-hint-wrap';
-    hintWrap.style.cssText = 'margin: 10px 0; display: flex; align-items: center; gap: 10px;';
-    hintWrap.innerHTML = `
-      <button id="hg-dash-hint-btn" class="hg-btn-secondary" onclick="hgSendBroadcastHint(event)">💡 Broadcast Hint to Class</button>
-      <span id="hg-dash-hint-display" style="font-size: 0.9rem; opacity: 0.8; font-style: italic;"></span>
-    `;
-    const targetContainer = document.getElementById('hg-dash-word-idx')?.parentElement?.parentElement || document.getElementById('hg-dashboard');
-    targetContainer.insertBefore(hintWrap, targetContainer.firstChild);
+    hintWrap.style.cssText = 'display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;';
+    
+    // Insert cleanly right above the student grid container
+    const gridContainer = document.getElementById('hg-dash-grid');
+    if(gridContainer && gridContainer.parentNode) {
+      gridContainer.parentNode.insertBefore(hintWrap, gridContainer);
+    } else {
+      const dashPanel = document.getElementById('hg-dashboard');
+      if(dashPanel) dashPanel.appendChild(hintWrap);
+    }
   }
-  
-  const dashHintBtn = document.getElementById('hg-dash-hint-btn');
+
+  // Render using standard native button/badge classes matching site styling
+  hintWrap.innerHTML = `
+    <button id="hg-dash-hint-btn" class="hg-btn-secondary" onclick="hgSendBroadcastHint(event)">💡 Broadcast Hint to Class</button>
+    <span id="hg-dash-hint-display" style="font-size: 0.9rem; opacity: 0.7; font-family: monospace;"></span>
+  `;
+
   const dashHintDisplay = document.getElementById('hg-dash-hint-display');
-  if(dashHintBtn) { dashHintBtn.disabled = false; dashHintBtn.textContent = '💡 Broadcast Hint to Class'; }
-  if(dashHintDisplay) { dashHintDisplay.textContent = 'Target: ' + word.length + '-letter word'; }
+  if(dashHintDisplay) {
+    const hint = HG_HINTS[word] || ('Starts with "' + word.charAt(0).toUpperCase() + '" and ends with "' + word.charAt(word.length - 1).toUpperCase() + '".');
+    dashHintDisplay.textContent = 'Current Hint Preview: ' + hint;
+  }
 
   hgRoom.students.forEach(s => {
     s.guessed = [];
@@ -548,7 +557,7 @@ function hgLoadDashboardWord(){
     const initial = s.name ? s.name.charAt(0).toUpperCase() : '?';
     return '<div class="hg-dash-card" id="' + s.id + '">' +
       '<div class="hg-dash-head">' +
-        '<div class="hg-dash-avatar" style="background:' + s.color + ';">' + initial + '</div>' +
+        '<div class="hg-dash-avatar" style="background:' + s.color + ';" tabindex="0" aria-label="' + s.name + '">' + initial + '</div>' +
         '<div class="hg-dash-name">' + s.name + '</div>' +
         '<div class="hg-dash-status" id="' + s.id + '-status">guessing…</div>' +
       '</div>' +
@@ -560,12 +569,12 @@ function hgLoadDashboardWord(){
 
   hgRoom.students.forEach(s => hgRenderDashboardCard(s, word));
 
-  if(hgLobby){
+  if(hgLobby && window.LobbySupabase){
     window.LobbySupabase.fetchProgress(hgLobby.id, hgState.idx).then(rows => {
       if(Array.isArray(rows)){
         rows.forEach(row => hgApplyProgressRow(row));
       }
-    });
+    }).catch(err => console.error('[hgLoadDashboardWord] fetchProgress error:', err));
   }
 }
 
