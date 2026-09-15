@@ -516,6 +516,26 @@ function hgLoadDashboardWord(){
   document.getElementById('hg-dash-word-len').textContent = word.length;
   document.getElementById('hg-dash-next-btn').style.display = 'none';
 
+  // Ensure hint display area or broadcast control exists/resets in the dashboard header
+  let hintWrap = document.getElementById('hg-dash-hint-wrap');
+  if(!hintWrap) {
+    const headerTop = document.querySelector('#hg-dashboard .hg-dash-header, #hg-dashboard') || document.getElementById('hg-dashboard');
+    hintWrap = document.createElement('div');
+    hintWrap.id = 'hg-dash-hint-wrap';
+    hintWrap.style.cssText = 'margin: 10px 0; display: flex; align-items: center; gap: 10px;';
+    hintWrap.innerHTML = `
+      <button id="hg-dash-hint-btn" class="hg-btn-secondary" onclick="hgSendBroadcastHint(event)">💡 Broadcast Hint to Class</button>
+      <span id="hg-dash-hint-display" style="font-size: 0.9rem; opacity: 0.8; font-style: italic;"></span>
+    `;
+    const targetContainer = document.getElementById('hg-dash-word-idx')?.parentElement?.parentElement || document.getElementById('hg-dashboard');
+    targetContainer.insertBefore(hintWrap, targetContainer.firstChild);
+  }
+  
+  const dashHintBtn = document.getElementById('hg-dash-hint-btn');
+  const dashHintDisplay = document.getElementById('hg-dash-hint-display');
+  if(dashHintBtn) { dashHintBtn.disabled = false; dashHintBtn.textContent = '💡 Broadcast Hint to Class'; }
+  if(dashHintDisplay) { dashHintDisplay.textContent = 'Target: ' + word.length + '-letter word'; }
+
   hgRoom.students.forEach(s => {
     s.guessed = [];
     s.misses = 0;
