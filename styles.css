@@ -1285,3 +1285,82 @@
   .game-card-grid{grid-template-columns:1fr;}
   .games-dashboard{padding:56px 0 80px;}
 }
+
+/* ============ HANGMAN VISUALS & ANIMATIONS ============ */
+#hg-figure {
+  overflow: visible;
+}
+
+#hg-figure line, #hg-figure circle {
+  transition: opacity 0.25s ease-in-out;
+}
+
+/* Animations for word outcome */
+.hg-anim-win {
+  animation: hgBounceWin 0.5s ease;
+}
+
+.hg-anim-lose {
+  animation: hgShakeLose 0.4s ease;
+}
+
+@keyframes hgBounceWin {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-12px) scale(1.02); }
+  60% { transform: translateY(-4px); }
+}
+
+@keyframes hgShakeLose {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+/* Red flash overlay on loss */
+.hg-lose-flash {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255, 75, 75, 0.15);
+  border-radius: 12px;
+  pointer-events: none;
+  animation: hgFadeOut 0.5s forwards;
+}
+
+@keyframes hgFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Confetti styling */
+.hg-confetti-wrap {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.hg-confetti {
+  position: absolute;
+  top: -10px;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  opacity: 0.9;
+  animation: hgConfettiFall 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes hgConfettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(220px) rotate(720deg); opacity: 0; }
+}
+
+/* Dashboard status indicators */
+.hg-dash-card.hg-won {
+  border-color: #39FF14 !important;
+  background: rgba(57, 255, 20, 0.05);
+}
+
+.hg-dash-card.hg-lost {
+  border-color: var(--coral-deep) !important;
+  background: rgba(255, 75, 75, 0.05);
+}
