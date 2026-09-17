@@ -113,6 +113,19 @@
 
 <style>
   @keyframes join-spin { to { transform: rotate(360deg); } }
+
+  /* Subtle swinging animation for the hangman figure */
+  @keyframes hg-swing {
+    0% { transform: rotate(0deg); }
+    25% { transform: rotate(1.5deg); }
+    75% { transform: rotate(-1.5deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  .hg-figure-wrap svg {
+    transform-origin: top center;
+    animation: hg-swing 3.5s ease-in-out infinite;
+  }
 </style>
 
 <script type="module" src="lobby.js"></script>
