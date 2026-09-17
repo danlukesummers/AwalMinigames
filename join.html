@@ -201,12 +201,12 @@
     if(joinDone){
       document.querySelectorAll('#join-keyboard .hg-key').forEach(k => k.disabled = true);
       if(won){
-        fb.textContent = '🎉 You got it!';
+        fb.innerHTML = '🎉 You got it!<br><span style="font-size:13px; opacity:0.8; font-weight:normal;">Waiting for your teacher to move to the next word…</span>';
         fb.className = 'hg-feedback win';
       } else {
         document.getElementById('join-word-display').innerHTML =
           word.split('').map(ch => '<div class="hg-letter-box">' + ch + '</div>').join('');
-        fb.textContent = '💀 Out of guesses. The word was "' + word + '"';
+        fb.innerHTML = '💀 Out of guesses. The word was "' + word + '"<br><span style="font-size:13px; opacity:0.8; font-weight:normal;">Waiting for your teacher to move to the next word…</span>';
         fb.className = 'hg-feedback lose';
       }
     }
@@ -222,14 +222,6 @@
       joinDone,
       won
     );
-
-    if(joinDone){
-      setTimeout(() => {
-        hideAllJoinSteps();
-        document.getElementById('join-waiting-others-title').textContent = won ? 'Nice work!' : 'Word revealed!';
-        document.getElementById('join-waiting-others-step').style.display = 'block';
-      }, 900);
-    }
   }
 
   function joinStartWord(){
@@ -324,6 +316,12 @@
       const prevStatus = joinLobbyRow ? joinLobbyRow.status : null;
       const prevWordIndex = joinLobbyRow ? joinLobbyRow.current_word_index : null;
       joinLobbyRow = updatedLobby;
+
+      if(updatedLobby.status === 'completed'){
+        hideAllJoinSteps();
+        document.getElementById('join-done-step').style.display = 'block';
+        return;
+      }
 
       if(updatedLobby.status !== 'playing') return;
 
