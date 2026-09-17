@@ -11,12 +11,30 @@
 <body>
 
 <div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">
-  <div style="max-width:440px; width:100%; background:var(--chalk); border:1.5px solid var(--line); border-radius:20px; padding:36px; text-align:center; box-shadow:0 4px 24px rgba(30,27,46,0.06);">
+  <div style="max-width:440px; width:100%; background:var(--chalk); border:1.5px solid var(--line); border-radius:20px; padding:36px; text-align:center; box-shadow:0 4px 24px rgba(30,27,46,0.06); position:relative;">
+
+    <!-- Rules Toggle Button (Always visible in top right corner) -->
+    <button onclick="toggleRulesModal()" style="position:absolute; top:18px; right:18px; background:none; border:none; font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:600; color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; gap:4px; padding:5px 9px; border-radius:8px; border:1px solid var(--line); z-index:10;">
+      📖 Rules
+    </button>
 
     <a href="index.html" style="text-decoration:none; color:inherit; display:inline-flex; align-items:center; gap:8px; font-family:'Bungee'; font-size:20px; margin-bottom:26px;">
       <svg viewBox="0 0 40 40" width="26" height="26" aria-hidden="true" focusable="false"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>
       AWAL
     </a>
+
+    <!-- A1 Rules Modal Overlay -->
+    <div id="join-rules-modal" style="display:none; text-align:left; background:var(--chalk); border:1.5px solid var(--line); border-radius:16px; padding:20px; margin-bottom:20px; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+      <h2 style="font-size:18px; margin:0 0 10px 0; color:var(--ink);">How to Play 🎯</h2>
+      <ul style="padding-left:18px; font-size:14px; color:var(--ink-soft); line-height:1.6; margin:0 0 16px 0;">
+        <li>Find the secret word letter by letter.</li>
+        <li>Click a letter to guess.</li>
+        <li><strong>Correct letter?</strong> It appears in the word!</li>
+        <li><strong>Wrong letter?</strong> You lose 1 try (6 total).</li>
+        <li>Guess the whole word before you run out of tries!</li>
+      </ul>
+      <button onclick="toggleRulesModal()" class="btn btn-primary" style="width:100%; padding:8px 0; font-size:13px;">Got it!</button>
+    </div>
 
     <!-- STEP 1: enter code + name -->
     <div id="join-form-step">
@@ -104,6 +122,11 @@
     const code = params.get('code');
     if(code) document.getElementById('join-code-input').value = code;
   });
+
+  function toggleRulesModal(){
+    const modal = document.getElementById('join-rules-modal');
+    modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+  }
 
   async function waitForLobbySupabase(){
     if(window.LobbySupabase) return;
