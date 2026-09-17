@@ -66,7 +66,7 @@
         <span class="mono" style="font-size:13px; color:var(--ink-soft);"><span id="join-misses">0</span> / 6 wrong</span>
       </div>
 
-      <!-- Hint UI (Only displayed when broadcasted by the teacher) -->
+      <!-- Hint UI (Driven by database state) -->
       <div id="join-hint-wrap" style="text-align:center; margin-bottom: 12px; display:none;">
         <p id="join-hint-text" style="font-size:13px; font-weight:600; color:var(--purple); margin:0; background:rgba(168,85,247,0.1); padding:8px 12px; border-radius:8px; border:1px solid rgba(168,85,247,0.2);"></p>
       </div>
@@ -149,12 +149,11 @@
   }
 
   /* ============ live game state for this student ============ */
-  let joinLobbyRow = null;   // { id, words, current_word_index, status, ... }
+  let joinLobbyRow = null;   // { id, words, current_word_index, status, current_hint, ... }
   let joinPlayer = null;     // { id, name }
   let joinGuessed = [];
   let joinMisses = 0;
   let joinDone = false;
-  let joinBroadcastChannel = null;
   const JOIN_PARTS = ['head','body','arm-l','arm-r','leg-l','leg-r'];
 
   function joinCurrentWord(){
@@ -169,6 +168,8 @@
     if(hintWrap && hintTextEl && hintText){
       hintTextEl.textContent = '💡 Teacher Hint: ' + hintText;
       hintWrap.style.display = 'block';
+    } else if(hintWrap){
+      hintWrap.style.display = 'none';
     }
   }
 
@@ -252,11 +253,8 @@
     joinMisses = 0;
     joinDone = false;
 
-    // Hide broadcasted hint box and reset gallows visual for the new word
-    const hintWrap = document.getElementById('join-hint-wrap');
-    const hintTextEl = document.getElementById('join-hint-text');
-    if(hintWrap) hintWrap.style.display = 'none';
-    if(hintTextEl) hintTextEl.textContent = '';
+    // Sync current database hint and reset gallows visual for the new word
+    showTeacherHint(joinLobbyRow ? joinLobbyRow.current_hint : null);
     updateGallowsVisual(0);
 
     document.getElementById('join-misses').textContent = '0';
@@ -320,22 +318,14 @@
     hideAllJoinSteps();
     document.getElementById('join-waiting-step').style.display = 'block';
 
-    // Realtime broadcast listener for teacher hints using LobbySupabase helper
-    if(joinBroadcastChannel){
-      window.LobbySupabase.unsubscribe(joinBroadcastChannel);
-    }
-    joinBroadcastChannel = window.LobbySupabase.listenForBroadcasts(lobby.id, (payload) => {
-      const hint = payload?.payload?.hint || payload?.hint;
-      if(hint){
-        showTeacherHint(hint);
-      }
-    });
-
-    // Subscribe to lobby state changes
+    // Subscribe to lobby state changes via database updates
     window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
       const prevStatus = joinLobbyRow ? joinLobbyRow.status : null;
       const prevWordIndex = joinLobbyRow ? joinLobbyRow.current_word_index : null;
       joinLobbyRow = updatedLobby;
+
+      // Handle hints directly from database field
+      showTeacherHint(updatedLobby.current_hint);
 
       if(updatedLobby.status === 'completed'){
         hideAllJoinSteps();
