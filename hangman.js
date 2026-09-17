@@ -219,15 +219,28 @@ function hgShowHint(customHintText){
   if(hintBtnEl) hintBtnEl.disabled = true;
 }
 async function hgSendBroadcastHint(event){
-  if(!hgLobby || !window.supabase) return;
+  if(!hgLobby) return;
   const currentWord = hgState.words[hgState.idx];
   const hint = HG_HINTS[currentWord] || ('Starts with "' + currentWord.charAt(0).toUpperCase() + '" and ends with "' + currentWord.charAt(currentWord.length - 1).toUpperCase() + '".');
-  const channel = window.supabase.channel('lobby-' + hgLobby.id);
-  await channel.send({
-    type: 'broadcast',
-    event: 'teacher_hint',
-    payload: {hint}
+
+  const client = (window.LobbySupabase && window.LobbySupabase.client) || window.supabase;
+  if(!client){
+    console.error('Supabase client not initialized for broadcast.');
+    return;
+  }
+
+  const channel = client.channel('lobby-' + hgLobby.id);
+  
+  channel.subscribe(async (status) => {
+    if(status === 'SUBSCRIBED'){
+      await channel.send({
+        type: 'broadcast',
+        event: 'teacher_hint',
+        payload: {hint}
+      });
+    }
   });
+
   const btn = event?.target;
   if(btn){
     const orig = btn.textContent;
