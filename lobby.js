@@ -34,7 +34,7 @@ async function createLobby(game){
 async function startLobbyGame(lobbyId, words){
   const { error } = await supabase
     .from('lobbies')
-    .update({ status: 'playing', words: words || [], current_word_index: 0 })
+    .update({ status: 'playing', words: words || [], current_word_index: 0, current_hint: null })
     .eq('id', lobbyId);
 
   if(error){
@@ -47,11 +47,24 @@ async function startLobbyGame(lobbyId, words){
 async function setLobbyWordIndex(lobbyId, wordIndex){
   const { error } = await supabase
     .from('lobbies')
-    .update({ current_word_index: wordIndex })
+    .update({ current_word_index: wordIndex, current_hint: null })
     .eq('id', lobbyId);
 
   if(error){
     console.error('[LobbySupabase] setLobbyWordIndex error:', error);
+    return false;
+  }
+  return true;
+}
+
+async function setLobbyHint(lobbyId, hintText){
+  const { error } = await supabase
+    .from('lobbies')
+    .update({ current_hint: hintText })
+    .eq('id', lobbyId);
+
+  if(error){
+    console.error('[LobbySupabase] setLobbyHint error:', error);
     return false;
   }
   return true;
@@ -165,14 +178,6 @@ function subscribeToLobby(lobbyId, onUpdate){
   return channel;
 }
 
-function listenForBroadcasts(lobbyId, onBroadcast){
-  const channel = supabase
-    .channel('broadcasts-' + lobbyId)
-    .on('broadcast', { event: 'teacher_hint' }, (payload) => onBroadcast(payload))
-    .subscribe();
-  return channel;
-}
-
 function unsubscribe(channel){
   if(channel) supabase.removeChannel(channel);
 }
@@ -182,12 +187,12 @@ window.LobbySupabase = {
   createLobby,
   startLobbyGame,
   setLobbyWordIndex,
+  setLobbyHint,
   findLobbyByCode,
   joinLobby,
   upsertProgress,
   fetchProgress,
   subscribeToProgress,
   subscribeToLobby,
-  listenForBroadcasts,
   unsubscribe,
 };
