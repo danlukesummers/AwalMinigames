@@ -178,6 +178,7 @@ function unsubscribe(channel){
 }
 
 window.LobbySupabase = {
+  client: supabase,
   createLobby,
   startLobbyGame,
   setLobbyWordIndex,
