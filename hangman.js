@@ -286,41 +286,24 @@ async function hgSendBroadcastHint(event){
   const currentWord = hgState.words[hgState.idx];
   const hint = hgGetHintForWord(currentWord);
 
-  const client = (window.LobbySupabase && window.LobbySupabase.client) || window.supabase;
-  if(!client){
-    console.error('Supabase client not initialized for broadcast.');
-    return;
-  }
-
-  // Broadcast using existing channel or client fallback
-  if (hgLobbyChannel) {
-    await hgLobbyChannel.send({
-      type: 'broadcast',
-      event: 'teacher_hint',
-      payload: { hint }
-    });
-  } else {
-    const channel = client.channel('lobby-' + hgLobby.id);
-    channel.subscribe(async (status) => {
-      if(status === 'SUBSCRIBED'){
-        await channel.send({
-          type: 'broadcast',
-          event: 'teacher_hint',
-          payload: { hint }
-        });
-      }
-    });
-  }
-
   const btn = event?.currentTarget || event?.target;
-  if(btn){
-    const orig = btn.textContent;
-    btn.textContent = 'Hint Broadcasted ✓';
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.textContent = orig;
+  if(btn) btn.disabled = true;
+
+  // Persist hint directly to the Supabase database column
+  if (window.LobbySupabase && window.LobbySupabase.setLobbyHint) {
+    const success = await window.LobbySupabase.setLobbyHint(hgLobby.id, hint);
+    if (success && btn) {
+      const orig = btn.textContent;
+      btn.textContent = 'Hint Broadcasted ✓';
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.disabled = false;
+      }, 2000);
+    } else if (btn) {
       btn.disabled = false;
-    }, 2000);
+    }
+  } else if (btn) {
+    btn.disabled = false;
   }
 }
 
@@ -756,6 +739,8 @@ async function hgDashNextWord(){
   }
 
   hgState.idx++;
-  if(hgLobby) await window.LobbySupabase.setLobbyWordIndex(hgLobby.id, hgState.idx);
+  if(hgLobby && window.LobbySupabase) {
+    await window.LobbySupabase.setLobbyWordIndex(hgLobby.id, hgState.idx);
+  }
   hgLoadDashboardWord();
 }
