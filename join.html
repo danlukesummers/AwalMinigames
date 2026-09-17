@@ -320,19 +320,16 @@
     hideAllJoinSteps();
     document.getElementById('join-waiting-step').style.display = 'block';
 
-    // Realtime broadcast listener for teacher hints using standard supabase channel subscription
-    if(window.supabase){
-      if(joinBroadcastChannel){
-        window.supabase.removeChannel(joinBroadcastChannel);
-      }
-      joinBroadcastChannel = window.supabase.channel('lobby-' + lobby.id)
-        .on('broadcast', { event: 'teacher_hint' }, (payload) => {
-          if(payload && payload.payload && payload.payload.hint){
-            showTeacherHint(payload.payload.hint);
-          }
-        })
-        .subscribe();
+    // Realtime broadcast listener for teacher hints using LobbySupabase helper
+    if(joinBroadcastChannel){
+      window.LobbySupabase.unsubscribe(joinBroadcastChannel);
     }
+    joinBroadcastChannel = window.LobbySupabase.listenForBroadcasts(lobby.id, (payload) => {
+      const hint = payload?.payload?.hint || payload?.hint;
+      if(hint){
+        showTeacherHint(hint);
+      }
+    });
 
     // Subscribe to lobby state changes
     window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
