@@ -131,6 +131,38 @@
   #join-timer.active {
     color:var(--coral-deep);
   }
+
+  /* Word display: every word stays on ONE line (boxes shrink to fit).
+     If a word has a "/" in it, each part gets its own line. */
+  #join-word-display {
+    display:flex !important;
+    flex-direction:column !important;
+    flex-wrap:nowrap !important;
+    align-items:center !important;
+    justify-content:flex-start !important;
+    gap:8px;
+    container-type:inline-size;
+  }
+  #join-word-display .join-word-line {
+    display:flex;
+    flex-wrap:nowrap;
+    justify-content:center;
+    gap:4px;
+    width:100%;
+  }
+  #join-word-display .join-word-line .hg-letter-box {
+    flex:0 1 44px;
+    min-width:0;
+    width:auto;
+    height:auto;
+    aspect-ratio:1 / 1.15;
+    margin:0;
+    padding:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:min(1.5rem, calc(55cqw / var(--n, 8)));
+  }
 </style>
 
 <script src="sounds.js"></script>
@@ -157,10 +189,25 @@
   }
 
   // Reveals the whole word: letters the student found are green, the rest red.
-  function joinRevealWord(word){
-    document.getElementById('join-word-display').innerHTML = word.split('').map(ch =>
-      '<div class="hg-letter-box" style="' + joinLetterStyle(joinGuessed.includes(ch) ? 'found' : 'missed') + '">' + ch + '</div>'
+  // Draws the word. A "/" splits it into separate lines; letters never wrap.
+  // reveal = true shows every letter (found = green, missed = red).
+  function joinDrawWord(word, reveal){
+    const el = document.getElementById('join-word-display');
+    const lines = word.split('/').map(l => l.trim()).filter(Boolean);
+
+    el.style.setProperty('--n', Math.max(1, ...lines.map(l => l.length)));
+
+    el.innerHTML = lines.map(line =>
+      '<div class="join-word-line">' + line.split('').map(ch => {
+        const found = joinGuessed.includes(ch);
+        const state = found ? 'found' : (reveal ? 'missed' : 'hidden');
+        return '<div class="hg-letter-box" style="' + joinLetterStyle(state) + '">' + ((found || reveal) ? ch : '') + '</div>';
+      }).join('') + '</div>'
     ).join('');
+  }
+
+  function joinRevealWord(word){
+    joinDrawWord(word, true);
   }
 
   function toggleRulesModal(){
@@ -224,11 +271,7 @@
   }
 
   function joinRenderWord(){
-    const word = joinCurrentWord();
-    document.getElementById('join-word-display').innerHTML = word.split('').map(ch => {
-      const shown = joinGuessed.includes(ch);
-      return '<div class="hg-letter-box" style="' + joinLetterStyle(shown ? 'found' : 'hidden') + '">' + (shown ? ch : '') + '</div>';
-    }).join('');
+    joinDrawWord(joinCurrentWord(), false);
   }
 
   function joinRenderKeyboard(){
@@ -343,7 +386,7 @@
     if(word.includes(letter)){
       btn.classList.add('correct');
       joinRenderWord(); // found letters turn green
-      won = word.split('').every(ch => joinGuessed.includes(ch));
+      won = word.split('').every(ch => ch === '/' || joinGuessed.includes(ch));
     } else {
       btn.classList.add('wrong');
       joinMisses++;
