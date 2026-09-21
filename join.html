@@ -133,6 +133,7 @@
   }
 </style>
 
+<script src="sounds.js"></script>
 <script type="module" src="lobby.js"></script>
 <script>
   window.addEventListener('DOMContentLoaded', () => {
@@ -140,6 +141,27 @@
     const code = params.get('code');
     if(code) document.getElementById('join-code-input').value = code;
   });
+
+  /* ============ LETTER COLOURS ============ */
+  const JOIN_COLOR_FOUND  = { bg: '#39FF14', fg: '#0b0b0b' }; // guessed correctly
+  const JOIN_COLOR_MISSED = { bg: '#FF4B4B', fg: '#ffffff' }; // revealed after a loss
+
+  function joinLetterStyle(state){
+    if(state === 'found'){
+      return 'background:' + JOIN_COLOR_FOUND.bg + ';color:' + JOIN_COLOR_FOUND.fg + ';border-color:' + JOIN_COLOR_FOUND.bg + ';transition:background .25s,color .25s;';
+    }
+    if(state === 'missed'){
+      return 'background:' + JOIN_COLOR_MISSED.bg + ';color:' + JOIN_COLOR_MISSED.fg + ';border-color:' + JOIN_COLOR_MISSED.bg + ';';
+    }
+    return '';
+  }
+
+  // Reveals the whole word: letters the student found are green, the rest red.
+  function joinRevealWord(word){
+    document.getElementById('join-word-display').innerHTML = word.split('').map(ch =>
+      '<div class="hg-letter-box" style="' + joinLetterStyle(joinGuessed.includes(ch) ? 'found' : 'missed') + '">' + ch + '</div>'
+    ).join('');
+  }
 
   function toggleRulesModal(){
     const modal = document.getElementById('join-rules-modal');
@@ -202,9 +224,10 @@
 
   function joinRenderWord(){
     const word = joinCurrentWord();
-    document.getElementById('join-word-display').innerHTML = word.split('').map(ch =>
-      '<div class="hg-letter-box">' + (joinGuessed.includes(ch) ? ch : '') + '</div>'
-    ).join('');
+    document.getElementById('join-word-display').innerHTML = word.split('').map(ch => {
+      const shown = joinGuessed.includes(ch);
+      return '<div class="hg-letter-box" style="' + joinLetterStyle(shown ? 'found' : 'hidden') + '">' + (shown ? ch : '') + '</div>';
+    }).join('');
   }
 
   function joinRenderKeyboard(){
@@ -273,10 +296,11 @@
 
     const word = joinCurrentWord();
 
+    AwalSounds.play('incorrectAnswer');
+
     document.querySelectorAll('#join-keyboard .hg-key').forEach(k => k.disabled = true);
 
-    document.getElementById('join-word-display').innerHTML =
-      word.split('').map(ch => '<div class="hg-letter-box">' + ch + '</div>').join('');
+    joinRevealWord(word);
 
     const fb = document.getElementById('join-feedback');
 
@@ -317,7 +341,7 @@
 
     if(word.includes(letter)){
       btn.classList.add('correct');
-      joinRenderWord();
+      joinRenderWord(); // found letters turn green
       won = word.split('').every(ch => joinGuessed.includes(ch));
     } else {
       btn.classList.add('wrong');
@@ -336,15 +360,18 @@
       document.querySelectorAll('#join-keyboard .hg-key').forEach(k => k.disabled = true);
 
       if(won){
+        AwalSounds.play('correctAnswer');
         fb.innerHTML = '🎉 You got it!<br><span style="font-size:13px; opacity:0.8; font-weight:normal;">Waiting for your teacher to move to the next word…</span>';
         fb.className = 'hg-feedback win';
       } else {
-        document.getElementById('join-word-display').innerHTML =
-          word.split('').map(ch => '<div class="hg-letter-box">' + ch + '</div>').join('');
+        AwalSounds.play('incorrectAnswer');
+        joinRevealWord(word); // found = green, missed = red
 
         fb.innerHTML = '💀 Out of guesses. The word was "' + word + '"<br><span style="font-size:13px; opacity:0.8; font-weight:normal;">Waiting for your teacher to move to the next word…</span>';
         fb.className = 'hg-feedback lose';
       }
+    } else {
+      AwalSounds.play(word.includes(letter) ? 'correctLetter' : 'incorrectLetter');
     }
 
     await window.LobbySupabase.upsertProgress(
@@ -405,6 +432,9 @@
     submitBtn.disabled = true;
     submitBtn.textContent = 'Joining…';
 
+    // Unlock audio on mobile (must happen inside this click)
+    AwalSounds.unlock();
+
     await waitForLobbySupabase();
 
     const lobby = await window.LobbySupabase.findLobbyByCode(code);
@@ -439,6 +469,9 @@
 
     hideAllJoinSteps();
     document.getElementById('join-waiting-step').style.display = 'block';
+
+    // Small delay so the unlock trick above has finished before the join sound
+    setTimeout(() => AwalSounds.play('join'), 150);
 
     window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
       const prevStatus = joinLobbyRow ? joinLobbyRow.status : null;
