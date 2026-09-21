@@ -1,173 +1,207 @@
-/* AWAL Minigames -- Guest Onboarding Flow (Hangman Single Test Room) */
+/* ==========================================================================
+   AWAL MINIGAMES — GUEST FLOW & DEMO PRICING LOCK
+   ========================================================================== */
 
-function showGuestSection(section) {
-  document.getElementById('guest-flow-overlay').style.display = 'block';
-  ['guest-lobby', 'guest-room', 'guest-done'].forEach(id => {
-    const el = document.getElementById('page-' + id);
-    if (el) el.style.display = (id === section) ? 'block' : 'none';
-  });
-  window.scrollTo({ top: 0, behavior: 'instant' });
-}
-
-function closeGuestFlow() {
-  document.getElementById('guest-flow-overlay').style.display = 'none';
-  window.scrollTo({ top: 0, behavior: 'instant' });
-}
-
-/* ============ SINGLE GAME CONFIGURATION ============ */
-const GUEST_GAMES = {
-  'hangman': { 
-    name: 'Hangman', 
-    icon: '💀', 
-    bg: '#FFE0DD', 
-    url: '/hangman.html' 
-  }
+let guestState = {
+  game: 'guess-who',
+  roomCode: '0000',
+  studentJoined: false,
+  isDemoActive: false
 };
 
-let guestSession = null;
-
-function openGuestLobby() {
-  showGuestSection('guest-lobby');
-}
-
-function guestRoomCode() {
-  return String(Math.floor(1000 + Math.random() * 9000));
-}
-
 /**
- * Initiates the Hangman guest trial room.
- * Restricted Access Mode: Bypasses multi-game selector and sets up trial constraints.
+ * Open the Guest Lobby Overlay & lock Demo Pricing
  */
-function selectGuestGame(gameId = 'hangman') {
-  const game = GUEST_GAMES['hangman']; // Enforce Hangman
-  const roomCode = guestRoomCode();
-
-  guestSession = {
-    gameId: 'hangman',
-    game,
-    roomCode,
-    studentLink: window.location.origin + '/join.html?code=' + roomCode,
-    creditsUsed: 1,
-    creditsMax: 1,
-    studentJoined: false,
-    restrictedMode: true
-  };
-
-  // Update Trial Room UI Elements
-  document.getElementById('room-icon').textContent = game.icon;
-  document.getElementById('room-icon').style.background = game.bg;
-  document.getElementById('room-game-name').textContent = game.name + ' (Trial Room)';
-  document.getElementById('room-code').textContent = roomCode;
-  document.getElementById('room-link').textContent = guestSession.studentLink;
-
-  document.getElementById('status-dot').classList.remove('joined');
-  document.getElementById('status-text').textContent = 'Waiting for student to join…';
+function openGuestLobby() {
+  const overlay = document.getElementById('guest-flow-overlay');
+  if (overlay) {
+    overlay.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  }
   
-  const simBtn = document.getElementById('simulate-join-btn');
-  if (simBtn) simBtn.style.display = 'block';
-
-  document.getElementById('guest-dot').classList.remove('exhausted');
-  document.getElementById('guest-bar-text').textContent = 'GUEST MODE: 1 / 1 Free Hangman Trial Active';
-
-  showGuestSection('guest-room');
-}
-
-function copyGuestLink() {
-  if (!guestSession) return;
-  navigator.clipboard.writeText(guestSession.studentLink).then(() => {
-    const btn = document.getElementById('copy-btn');
-    if (!btn) return;
-    const original = btn.textContent;
-    btn.textContent = 'Copied ✓';
-    setTimeout(() => { btn.textContent = original; }, 1600);
-  }).catch(() => {});
-}
-
-function simulateGuestJoin() {
-  if (!guestSession) return;
-  guestSession.studentJoined = true;
-  
-  document.getElementById('status-dot').classList.add('joined');
-  document.getElementById('status-text').textContent = 'A student has joined the Hangman room 🎉';
-  
-  const simBtn = document.getElementById('simulate-join-btn');
-  if (simBtn) simBtn.style.display = 'none';
+  guestState.isDemoActive = true;
+  updateDemoPricingCard(true);
+  showGuestPage('page-guest-lobby');
 }
 
 /**
- * Launches the restricted Hangman instance in guest mode.
+ * Close Guest Flow Overlay
+ */
+function closeGuestFlow() {
+  const overlay = document.getElementById('guest-flow-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+/**
+ * Switch sub-pages within the Guest Overlay
+ */
+function showGuestPage(pageId) {
+  const pages = ['page-guest-lobby', 'page-guest-room', 'page-guest-done'];
+  pages.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (id === pageId) ? 'block' : 'none';
+  });
+}
+
+/**
+ * Select game & create room
+ */
+function selectGuestGame(gameKey) {
+  guestState.game = gameKey;
+  
+  // Generate random 4-digit code
+  guestState.roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+  
+  // Update UI Elements
+  const roomCodeEl = document.getElementById('room-code');
+  const roomLinkEl = document.getElementById('room-link');
+  const roomGameNameEl = document.getElementById('room-game-name');
+  const roomIconEl = document.getElementById('room-icon');
+  
+  if (roomCodeEl) roomCodeEl.innerText = guestState.roomCode;
+  if (roomLinkEl) roomLinkEl.innerText = `https://awalminigames.com/join/${guestState.roomCode}`;
+  
+  const gameInfo = getGameDetails(gameKey);
+  if (roomGameNameEl) roomGameNameEl.innerText = gameInfo.name;
+  if (roomIconEl) roomIconEl.innerText = gameInfo.icon;
+  
+  // Reset student join status
+  guestState.studentJoined = false;
+  updateJoinStatusUI(false);
+  
+  showGuestPage('page-guest-room');
+}
+
+/**
+ * Helper to get game metadata
+ */
+function getGameDetails(key) {
+  const games = {
+    'guess-who': { name: 'Guess Who', icon: '🕵️' },
+    'pictionary': { name: 'Pictionary', icon: '🎨' },
+    'hangman': { name: 'Hangman', icon: '🔤' },
+    'impostor': { name: 'The Impostor', icon: '🎭' }
+  };
+  return games[key] || { name: 'Minigame', icon: '🎮' };
+}
+
+/**
+ * Copy room link to clipboard
+ */
+function copyGuestLink() {
+  const linkText = document.getElementById('room-link')?.innerText;
+  if (!linkText) return;
+  
+  navigator.clipboard.writeText(linkText).then(() => {
+    const btn = document.getElementById('copy-btn');
+    if (btn) {
+      btn.innerText = 'Copied!';
+      setTimeout(() => { btn.innerText = 'Copy'; }, 2000);
+    }
+  });
+}
+
+/**
+ * Simulate student joining (For Demo/Testing)
+ */
+function simulateGuestJoin() {
+  guestState.studentJoined = true;
+  updateJoinStatusUI(true);
+}
+
+function updateJoinStatusUI(joined) {
+  const statusDot = document.getElementById('status-dot');
+  const statusText = document.getElementById('status-text');
+  
+  if (statusDot && statusText) {
+    if (joined) {
+      statusDot.style.background = '#10B981'; // Green
+      statusText.innerText = 'Student joined! Ready to play.';
+    } else {
+      statusDot.style.background = '#F59E0B'; // Amber
+      statusText.innerText = 'Waiting for student to join…';
+    }
+  }
+}
+
+/**
+ * Launch live game session
  */
 function launchGuestGame() {
-  if (!guestSession) return;
-  // Redirect to hangman.html with guest parameters enabled
-  window.location.href = `${GUEST_GAMES.hangman.url}?room=${guestSession.roomCode}&mode=guest&restricted=true`;
+  if (guestState.game === 'hangman') {
+    window.location.href = `hangman.html?room=${guestState.roomCode}&guest=true`;
+  } else {
+    alert(`Launching demo room for ${getGameDetails(guestState.game).name}!`);
+  }
 }
 
+/**
+ * End trial game & trigger conversion modal
+ */
 function endGuestTrial() {
-  document.getElementById('guest-dot').classList.add('exhausted');
-  document.getElementById('guest-bar-text').textContent = 'GUEST MODE: 1 / 1 Free Hangman Trial Used';
-  openSignupModal();
+  guestState.isDemoActive = false;
+  updateDemoPricingCard(false);
+  
+  const modal = document.getElementById('signup-modal');
+  if (modal) {
+    modal.classList.add('open');
+  } else {
+    showGuestPage('page-guest-done');
+  }
 }
 
-/* ============ SIGNUP & AUTHENTICATION MODAL ============ */
-function openSignupModal() {
-  document.getElementById('signup-modal').classList.add('open');
+/**
+ * Toggle Locked/Unlocked State on Pricing Card
+ */
+function updateDemoPricingCard(isLocked) {
+  const demoCard = document.getElementById('demo-price-card');
+  const demoBtn = document.getElementById('demo-plan-btn');
+
+  if (!demoCard || !demoBtn) return;
+
+  if (isLocked) {
+    demoCard.classList.add('locked');
+    demoBtn.disabled = true;
+    demoBtn.innerText = 'Currently In Demo';
+    demoBtn.className = 'btn btn-disabled btn-block';
+  } else {
+    demoCard.classList.remove('locked');
+    demoBtn.disabled = false;
+    demoBtn.innerText = 'Try Demo Free';
+    demoBtn.className = 'btn btn-ghost btn-block';
+    demoBtn.onclick = () => openGuestLobby();
+  }
 }
 
+/**
+ * Modal & Sign Up Handlers
+ */
 function closeSignupModal() {
-  document.getElementById('signup-modal').classList.remove('open');
+  const modal = document.getElementById('signup-modal');
+  if (modal) modal.classList.remove('open');
+  showGuestPage('page-guest-done');
 }
 
 function googleGuestSignUp() {
-  completeGuestSignUp({ name: 'Jane Rivera' });
-}
-
-function clearGuestErrors() {
-  ['name', 'email', 'password', 'terms'].forEach(k => {
-    const f = document.getElementById('mfield-' + k);
-    if (f) f.classList.remove('error');
-    const el = document.getElementById('merror-' + k);
-    if (el) { el.style.display = 'none'; el.textContent = ''; }
-  });
-}
-
-function showGuestError(key, message) {
-  const field = document.getElementById('mfield-' + key);
-  if (field) field.classList.add('error');
-  const el = document.getElementById('merror-' + key);
-  if (el) { el.style.display = 'block'; el.textContent = message; }
-}
-
-function handleGuestSignUp(e) {
-  e.preventDefault();
-  clearGuestErrors();
-
-  const name = document.getElementById('minput-name').value.trim();
-  const email = document.getElementById('minput-email').value.trim();
-  const password = document.getElementById('minput-password').value;
-  const terms = document.getElementById('minput-terms').checked;
-
-  let valid = true;
-  if (!name) { showGuestError('name', 'Enter your full name.'); valid = false; }
-  if (!/^\S+@\S+\.\S+$/.test(email)) { showGuestError('email', 'Enter a valid email address.'); valid = false; }
-  if (password.length < 8) { showGuestError('password', 'Use at least 8 characters.'); valid = false; }
-  if (!terms) { showGuestError('terms', 'You need to accept the terms to continue.'); valid = false; }
-  if (!valid) return;
-
-  const btn = document.getElementById('guest-submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Creating account…';
-
-  setTimeout(() => {
-    completeGuestSignUp({ name });
-    btn.disabled = false;
-    btn.textContent = 'Create Free Account (Get 5 Credits/mo)';
-  }, 500);
-}
-
-function completeGuestSignUp(user) {
+  alert('Redirecting to Google authentication…');
   closeSignupModal();
-  const firstName = (user.name || 'there').split(' ')[0];
-  document.getElementById('guest-done-heading').textContent = 'Welcome to AWAL, ' + firstName + '!';
-  showGuestSection('guest-done');
+}
+
+function handleGuestSignUp(event) {
+  event.preventDefault();
+  
+  const name = document.getElementById('minput-name')?.value.trim();
+  const email = document.getElementById('minput-email')?.value.trim();
+  const password = document.getElementById('minput-password')?.value;
+  const terms = document.getElementById('minput-terms')?.checked;
+  
+  if (!name || !email || !password || !terms) {
+    alert('Please complete all required fields and accept the Terms.');
+    return;
+  }
+  
+  closeSignupModal();
 }
