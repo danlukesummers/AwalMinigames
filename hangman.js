@@ -45,33 +45,6 @@ const hgState = {
 
 const HG_PARTS = ['head','body','arm-l','arm-r','leg-l','leg-r'];
 
-/* ============ SOUND EFFECTS ============ */
-// NOTE: file names are case-sensitive on GitHub Pages / most servers.
-// They must match the files in your /sounds folder exactly.
-const hgSounds = {
-  correctLetter:   new Audio('sounds/correct_letter.mp3'),
-  incorrectLetter: new Audio('sounds/incorrect_letter.mp3'),
-  correctAnswer:   new Audio('sounds/correct_answer.mp3'),
-  incorrectAnswer: new Audio('sounds/Incorrect_answer.mp3'),
-  join:            new Audio('sounds/join_lobby.mp3'),
-  leave:           new Audio('sounds/leave_lobby.mp3')
-};
-
-Object.values(hgSounds).forEach(a => { a.preload = 'auto'; });
-
-let hgMuted = false;
-
-function hgPlaySound(name){
-  if(hgMuted) return;
-  const s = hgSounds[name];
-  if(!s) return;
-  try {
-    s.currentTime = 0;
-    const p = s.play();
-    if(p && p.catch) p.catch(() => {}); // ignore browser autoplay blocks
-  } catch(e) {}
-}
-
 function hgGetHintForWord(word) {
   if (!word) return '';
   return HG_HINTS[word] || ('Starts with "' + word.charAt(0).toUpperCase() + '" and ends with "' + word.charAt(word.length - 1).toUpperCase() + '".');
@@ -434,7 +407,7 @@ function hgGuess(letter, btn){
       hgState.score++;
       hgWordEnd(true); // plays the "correct answer" sound
     } else {
-      hgPlaySound('correctLetter');
+      AwalSounds.play('correctLetter');
     }
   } else {
     btn.classList.add('wrong');
@@ -453,7 +426,7 @@ function hgGuess(letter, btn){
     if(hgState.misses >= 6){
       hgWordEnd(false); // plays the "incorrect answer" sound
     } else {
-      hgPlaySound('incorrectLetter');
+      AwalSounds.play('incorrectLetter');
     }
   }
 }
@@ -478,13 +451,13 @@ function hgWordEnd(won){
   }
 
   if(won){
-    hgPlaySound('correctAnswer');
+    AwalSounds.play('correctAnswer');
     fb.textContent = '🎉 Correct! The word was "' + word + '"';
     fb.className = 'hg-feedback win';
 
     if (wordWrap) hgPlayWinAnimation(wordWrap);
   } else {
-    hgPlaySound('incorrectAnswer');
+    AwalSounds.play('incorrectAnswer');
     fb.textContent = '💀 Out of guesses. The word was "' + word + '"';
     fb.className = 'hg-feedback lose';
 
@@ -634,9 +607,9 @@ async function hgOpenRoom(){
     const newIds = (updatedLobby.players || []).map(p => p.id);
 
     if(newIds.some(id => !prevIds.includes(id))){
-      hgPlaySound('join');
+      AwalSounds.play('join');
     } else if(prevIds.some(id => !newIds.includes(id))){
-      hgPlaySound('leave');
+      AwalSounds.play('leave');
     }
 
     hgRoom.students = (updatedLobby.players || []).map((p, i) => ({
@@ -912,7 +885,7 @@ function hgApplyProgressRow(row){
   // Teacher-side sounds for a student's individual guesses (not the final one,
   // since hgFinishStudent plays the answer sound below)
   if(!row.done && student.guessed.length > prevGuessCount){
-    hgPlaySound(student.misses > prevMisses ? 'incorrectLetter' : 'correctLetter');
+    AwalSounds.play(student.misses > prevMisses ? 'incorrectLetter' : 'correctLetter');
   }
 
   hgRenderDashboardCard(student, word);
@@ -968,13 +941,13 @@ function hgFinishStudent(student, won, word, timedOut){
   if(!card || !statusEl) return;
 
   if(won){
-    hgPlaySound('correctAnswer');
+    AwalSounds.play('correctAnswer');
     card.classList.remove('hg-lost');
     card.classList.add('hg-won');
     statusEl.textContent = 'SOLVED ✓';
     hgPlayWinAnimation(card);
   } else {
-    hgPlaySound('incorrectAnswer');
+    AwalSounds.play('incorrectAnswer');
     card.classList.remove('hg-won');
     card.classList.add('hg-lost');
     statusEl.textContent = timedOut ? 'TIME UP' : 'OUT OF GUESSES';
