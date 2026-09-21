@@ -1,12 +1,20 @@
--- Run this in the Supabase SQL editor. It's additive -- it only adds a new
--- column to `lobbies` (if missing) and a new `lobby_progress` table; it does
--- not touch your existing `lobbies` rows or RLS policies.
+-- Run this in the Supabase SQL editor. It's additive -- it only adds new
+-- columns to `lobbies` and the existing `lobby_progress` table;
+-- it does not remove or alter your existing rows or RLS policies.
 
 -- Which word (by index into lobbies.words) the whole room is currently on.
 -- Every student's browser watches this column via the same realtime
 -- subscription they already use for `status`, so when the teacher clicks
 -- "Next word", everyone advances together.
 alter table lobbies add column if not exists current_word_index int not null default 0;
+
+-- Optional per-word Hangman timer.
+-- 0 means no time limit.
+alter table lobbies add column if not exists time_limit int not null default 0;
+
+-- Exact timestamp when the current word started.
+-- Both teacher and students calculate the remaining time from this value.
+alter table lobbies add column if not exists round_started_at timestamptz;
 
 -- One row per (lobby, student, word). This is what makes guessing real:
 -- each student's own browser writes to their own row as they guess letters,
@@ -44,6 +52,6 @@ create policy "lobby_progress_update" on lobby_progress
   for update using (true);
 
 -- Make sure Supabase Realtime actually broadcasts changes on this table.
--- (Skip this line if your project already added it, or if it errors saying
--- the table is already a member -- that means it's already on.)
+-- Skip this line if your project already added it, or if it errors saying
+-- the table is already a member -- that means it's already on.
 alter publication supabase_realtime add table lobby_progress;
