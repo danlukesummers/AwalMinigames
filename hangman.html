@@ -83,6 +83,20 @@
             <input type="range" id="hg-count" min="1" max="4" value="4" oninput="hgUpdateCount(this.value)" style="width:100%;">
           </div>
 
+          <div class="field" style="max-width:320px;">
+            <label>Time per word</label>
+            <select id="hg-time-limit" onchange="hgUpdateTimeLimit(this.value)" style="width:100%; padding:12px 14px; border-radius:12px; border:3px solid var(--ink); font-family:'Space Grotesk'; font-size:14.5px; background:white;">
+              <option value="0" selected>No time limit</option>
+              <option value="30">30 seconds</option>
+              <option value="45">45 seconds</option>
+              <option value="60">60 seconds</option>
+              <option value="75">75 seconds</option>
+              <option value="90">90 seconds</option>
+              <option value="105">105 seconds</option>
+              <option value="120">120 seconds</option>
+            </select>
+          </div>
+
           <div class="hg-source-grid">
             <div class="hg-source-card active" id="hg-src-random" onclick="hgSetSource('random')">
               <div class="hg-src-num">1</div>
@@ -167,6 +181,7 @@
           <div class="hg-play-top">
             <span class="mono hg-progress">Word <span id="hg-dash-word-idx">1</span> / <span id="hg-dash-word-total">6</span></span>
             <span class="mono">Target: <strong id="hg-dash-word-len">–</strong>-letter word</span>
+            <span class="mono" id="hg-dash-timer" style="font-weight:700;">No time limit</span>
           </div>
           <div id="hg-dash-grid" class="hg-dash-grid"></div>
           <div style="text-align:center; margin-top:22px;">
