@@ -167,6 +167,73 @@ async function joinLobby(lobbyId, playerName){
   return player;
 }
 
+// Removes a player from the lobby's players list (used when a student leaves
+// while the room is still waiting). The lobby UPDATE it triggers refreshes
+// the teacher's roster automatically.
+async function leaveLobby(lobbyId, playerId){
+  const { data: lobby, error: fetchError } = await supabase
+    .from('lobbies')
+    .select('players')
+    .eq('id', lobbyId)
+    .single();
+
+  if(fetchError){
+    recordError('leaveLobby fetch', fetchError);
+    return false;
+  }
+
+  const updatedPlayers = (lobby.players || []).filter(p => p.id !== playerId);
+
+  const { error: updateError } = await supabase
+    .from('lobbies')
+    .update({ players: updatedPlayers })
+    .eq('id', lobbyId);
+
+  if(updateError){
+    recordError('leaveLobby update', updateError);
+    return false;
+  }
+  return true;
+}
+
+/* ============ PRESENCE: knows when a student closes their tab ============ */
+
+// STUDENT: announce "I'm here". When the tab/browser closes, the connection
+// drops and Supabase tells everyone watching that this player left.
+function trackPresence(lobbyId, player){
+  const channel = supabase.channel('presence-' + lobbyId, {
+    config: { presence: { key: player.id } }
+  });
+
+  channel.subscribe(async (status) => {
+    if(status === 'SUBSCRIBED'){
+      await channel.track({ name: player.name, online_at: new Date().toISOString() });
+    }
+  });
+
+  return channel;
+}
+
+// TEACHER: get told when a student's presence disappears.
+function watchPresence(lobbyId, onLeave){
+  const channel = supabase.channel('presence-' + lobbyId, {
+    config: { presence: { key: 'teacher-' + makePlayerId() } }
+  });
+
+  channel
+    .on('presence', { event: 'leave' }, ({ key }) => onLeave(key))
+    .subscribe();
+
+  return channel;
+}
+
+// True if this player currently has a live connection on the channel.
+function isPresent(channel, playerId){
+  if(!channel) return false;
+  const state = channel.presenceState();
+  return Object.prototype.hasOwnProperty.call(state, playerId);
+}
+
 /* ============ SHARED: per-student live guessing progress ============ */
 
 async function upsertProgress(lobbyId, playerId, playerName, wordIndex, guessed, misses, done, won){
@@ -244,6 +311,10 @@ window.LobbySupabase = {
   setLobbyHint,
   findLobbyByCode,
   joinLobby,
+  leaveLobby,
+  trackPresence,
+  watchPresence,
+  isPresent,
   upsertProgress,
   fetchProgress,
   subscribeToProgress,
