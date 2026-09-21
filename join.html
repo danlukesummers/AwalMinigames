@@ -191,6 +191,7 @@
   /* ============ live game state for this student ============ */
   let joinLobbyRow = null;
   let joinPlayer = null;
+  let joinPresenceChannel = null;
   let joinGuessed = [];
   let joinMisses = 0;
   let joinDone = false;
@@ -464,6 +465,9 @@
 
     joinLobbyRow = lobby;
     joinPlayer = player;
+
+    // Tell the teacher we're here. When this tab closes, the teacher is told we left.
+    joinPresenceChannel = window.LobbySupabase.trackPresence(lobby.id, player);
 
     document.getElementById('join-player-name').textContent = name;
 
