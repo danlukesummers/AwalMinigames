@@ -3,6 +3,13 @@
 
 import { supabase } from './supabase-client.js';
 
+let lastError = null;
+function recordError(where, error){
+  console.error('[LobbySupabase] ' + where + ' error:', error);
+  lastError = (error && (error.message || error.details || error.hint)) || String(error);
+  if (window.LobbySupabase) window.LobbySupabase.lastError = lastError;
+}
+
 function generateLobbyCode(){
   return String(Math.floor(100000 + Math.random() * 900000)); // 6 digits
 }
@@ -17,24 +24,30 @@ function makePlayerId(){
 /* ============ TEACHER ============ */
 
 async function createLobby(game, timeLimit){
-  const code = generateLobbyCode();
-  const { data, error } = await supabase
-    .from('lobbies')
-    .insert({
-      code,
-      game: game || 'hangman',
-      status: 'waiting',
-      players: [],
-      time_limit: Number(timeLimit) || 0
-    })
-    .select()
-    .single();
+  // retry a few times in case a random code collides
+  for(let attempt = 0; attempt < 3; attempt++){
+    const code = generateLobbyCode();
+    const { data, error } = await supabase
+      .from('lobbies')
+      .insert({
+        code,
+        game: game || 'hangman',
+        status: 'waiting',
+        players: [],
+        time_limit: Number(timeLimit) || 0
+      })
+      .select()
+      .single();
 
-  if(error){
-    console.error('[LobbySupabase] createLobby error:', error);
+    if(!error) return data;
+
+    // 23505 = unique violation (code already used) -> try a new code
+    if(error.code === '23505') continue;
+
+    recordError('createLobby', error);
     return null;
   }
-  return data;
+  return null;
 }
 
 async function startLobbyGame(lobbyId, words, timeLimit){
@@ -55,10 +68,9 @@ async function startLobbyGame(lobbyId, words, timeLimit){
     .single();
 
   if(error){
-    console.error('[LobbySupabase] startLobbyGame error:', error);
+    recordError('startLobbyGame', error);
     return null;
   }
-
   return data;
 }
 
@@ -77,10 +89,9 @@ async function setLobbyWordIndex(lobbyId, wordIndex){
     .single();
 
   if(error){
-    console.error('[LobbySupabase] setLobbyWordIndex error:', error);
+    recordError('setLobbyWordIndex', error);
     return null;
   }
-
   return data;
 }
 
@@ -91,7 +102,7 @@ async function setLobbyHint(lobbyId, hintText){
     .eq('id', lobbyId);
 
   if(error){
-    console.error('[LobbySupabase] setLobbyHint error:', error);
+    recordError('setLobbyHint', error);
     return false;
   }
   return true;
@@ -107,7 +118,7 @@ async function findLobbyByCode(code){
     .maybeSingle();
 
   if(error){
-    console.error('[LobbySupabase] findLobbyByCode error:', error);
+    recordError('findLobbyByCode', error);
     return null;
   }
   return data;
@@ -121,7 +132,7 @@ async function joinLobby(lobbyId, playerName){
     .single();
 
   if(fetchError){
-    console.error('[LobbySupabase] joinLobby fetch error:', fetchError);
+    recordError('joinLobby fetch', fetchError);
     return null;
   }
 
@@ -134,10 +145,9 @@ async function joinLobby(lobbyId, playerName){
     .eq('id', lobbyId);
 
   if(updateError){
-    console.error('[LobbySupabase] joinLobby update error:', updateError);
+    recordError('joinLobby update', updateError);
     return null;
   }
-
   return player;
 }
 
@@ -159,7 +169,7 @@ async function upsertProgress(lobbyId, playerId, playerName, wordIndex, guessed,
     }, { onConflict: 'lobby_id,player_id,word_index' });
 
   if(error){
-    console.error('[LobbySupabase] upsertProgress error:', error);
+    recordError('upsertProgress', error);
     return false;
   }
   return true;
@@ -173,7 +183,7 @@ async function fetchProgress(lobbyId, wordIndex){
     .eq('word_index', wordIndex);
 
   if(error){
-    console.error('[LobbySupabase] fetchProgress error:', error);
+    recordError('fetchProgress', error);
     return [];
   }
   return data;
@@ -211,6 +221,7 @@ function unsubscribe(channel){
 
 window.LobbySupabase = {
   client: supabase,
+  lastError: null,
   createLobby,
   startLobbyGame,
   setLobbyWordIndex,
@@ -221,5 +232,5 @@ window.LobbySupabase = {
   fetchProgress,
   subscribeToProgress,
   subscribeToLobby,
-  unsubscribe,
+  unsubscribe
 };
