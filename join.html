@@ -61,13 +61,14 @@
 
     <!-- STEP 3: live play -- student guesses letters here, on their own device -->
     <div id="join-play-step" style="display:none; text-align:left;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
         <span class="mono" style="font-size:13px; color:var(--ink-soft);">Word <span id="join-word-idx">1</span> / <span id="join-word-total">–</span></span>
+        <span id="join-timer" class="mono" style="font-size:13px; color:var(--ink-soft); font-weight:700; display:none;">⏱ 0s</span>
         <span class="mono" style="font-size:13px; color:var(--ink-soft);"><span id="join-misses">0</span> / 6 wrong</span>
       </div>
 
       <!-- Hint UI (Driven by database state) -->
-      <div id="join-hint-wrap" style="text-align:center; margin-bottom: 12px; display:none;">
+      <div id="join-hint-wrap" style="text-align:center; margin-bottom:12px; display:none;">
         <p id="join-hint-text" style="font-size:13px; font-weight:600; color:var(--purple); margin:0; background:rgba(168,85,247,0.1); padding:8px 12px; border-radius:8px; border:1px solid rgba(168,85,247,0.2);"></p>
       </div>
 
@@ -126,6 +127,10 @@
     transform-origin: top center;
     animation: hg-swing 3.5s ease-in-out infinite;
   }
+
+  #join-timer.active {
+    color:var(--coral-deep);
+  }
 </style>
 
 <script type="module" src="lobby.js"></script>
@@ -162,11 +167,13 @@
   }
 
   /* ============ live game state for this student ============ */
-  let joinLobbyRow = null;   // { id, words, current_word_index, status, current_hint, ... }
-  let joinPlayer = null;     // { id, name }
+  let joinLobbyRow = null;
+  let joinPlayer = null;
   let joinGuessed = [];
   let joinMisses = 0;
   let joinDone = false;
+  let joinTimerInterval = null;
+  let joinTimedOut = false;
   const JOIN_PARTS = ['head','body','arm-l','arm-r','leg-l','leg-r'];
 
   function joinCurrentWord(){
@@ -213,8 +220,95 @@
     });
   }
 
+  function joinStopTimer(){
+    if(joinTimerInterval){
+      clearInterval(joinTimerInterval);
+      joinTimerInterval = null;
+    }
+  }
+
+  function joinRenderTimer(){
+    const timerEl = document.getElementById('join-timer');
+    if(!timerEl) return;
+
+    const limit = Number(joinLobbyRow && joinLobbyRow.time_limit) || 0;
+
+    if(!limit || !joinLobbyRow || !joinLobbyRow.round_started_at){
+      joinStopTimer();
+      timerEl.style.display = 'none';
+      timerEl.classList.remove('active');
+      return;
+    }
+
+    timerEl.style.display = 'inline-block';
+
+    const tick = () => {
+      if(joinDone || !joinLobbyRow || joinLobbyRow.status !== 'playing'){
+        joinStopTimer();
+        return;
+      }
+
+      const startedAt = new Date(joinLobbyRow.round_started_at).getTime();
+      const remaining = Math.max(0, (limit * 1000 - (Date.now() - startedAt)) / 1000);
+
+      timerEl.textContent = '⏱ ' + Math.ceil(remaining) + 's';
+      timerEl.classList.toggle('active', remaining <= 10);
+
+      if(remaining <= 0){
+        joinStopTimer();
+        joinTimeExpired();
+      }
+    };
+
+    joinStopTimer();
+    tick();
+    joinTimerInterval = setInterval(tick, 250);
+  }
+
+  async function joinTimeExpired(){
+    if(joinDone || joinTimedOut) return;
+
+    joinTimedOut = true;
+    joinDone = true;
+
+    const word = joinCurrentWord();
+
+    document.querySelectorAll('#join-keyboard .hg-key').forEach(k => k.disabled = true);
+
+    document.getElementById('join-word-display').innerHTML =
+      word.split('').map(ch => '<div class="hg-letter-box">' + ch + '</div>').join('');
+
+    const fb = document.getElementById('join-feedback');
+
+    fb.innerHTML = '⏰ Time is up! The word was "' + word + '"<br><span style="font-size:13px; opacity:0.8; font-weight:normal;">Waiting for your teacher to move to the next word…</span>';
+    fb.className = 'hg-feedback lose';
+
+    await window.LobbySupabase.upsertProgress(
+      joinLobbyRow.id,
+      joinPlayer.id,
+      joinPlayer.name,
+      joinLobbyRow.current_word_index || 0,
+      joinGuessed,
+      joinMisses,
+      true,
+      false
+    );
+  }
+
   async function joinGuess(letter, btn){
     if(joinDone || joinGuessed.includes(letter)) return;
+
+    const limit = Number(joinLobbyRow && joinLobbyRow.time_limit) || 0;
+
+    if(limit && joinLobbyRow && joinLobbyRow.round_started_at){
+      const elapsed = Date.now() - new Date(joinLobbyRow.round_started_at).getTime();
+
+      if(elapsed >= limit * 1000){
+        await joinTimeExpired();
+        return;
+      }
+    }
+
     joinGuessed.push(letter);
     btn.disabled = true;
 
@@ -235,20 +329,24 @@
     joinDone = won || joinMisses >= 6;
 
     const fb = document.getElementById('join-feedback');
+
     if(joinDone){
+      joinStopTimer();
+
       document.querySelectorAll('#join-keyboard .hg-key').forEach(k => k.disabled = true);
+
       if(won){
         fb.innerHTML = '🎉 You got it!<br><span style="font-size:13px; opacity:0.8; font-weight:normal;">Waiting for your teacher to move to the next word…</span>';
         fb.className = 'hg-feedback win';
       } else {
         document.getElementById('join-word-display').innerHTML =
           word.split('').map(ch => '<div class="hg-letter-box">' + ch + '</div>').join('');
+
         fb.innerHTML = '💀 Out of guesses. The word was "' + word + '"<br><span style="font-size:13px; opacity:0.8; font-weight:normal;">Waiting for your teacher to move to the next word…</span>';
         fb.className = 'hg-feedback lose';
       }
     }
 
-    // Push progress write up to Supabase
     await window.LobbySupabase.upsertProgress(
       joinLobbyRow.id,
       joinPlayer.id,
@@ -262,11 +360,13 @@
   }
 
   function joinStartWord(){
+    joinStopTimer();
+
     joinGuessed = [];
     joinMisses = 0;
     joinDone = false;
+    joinTimedOut = false;
 
-    // Sync current database hint and reset gallows visual for the new word
     showTeacherHint(joinLobbyRow ? joinLobbyRow.current_hint : null);
     updateGallowsVisual(0);
 
@@ -275,10 +375,14 @@
     document.getElementById('join-word-total').textContent = (joinLobbyRow.words || []).length;
     document.getElementById('join-feedback').textContent = '';
     document.getElementById('join-feedback').className = 'hg-feedback';
+
     joinRenderWord();
     joinRenderKeyboard();
+
     hideAllJoinSteps();
     document.getElementById('join-play-step').style.display = 'block';
+
+    joinRenderTimer();
   }
 
   async function handleJoinSubmit(){
@@ -291,6 +395,7 @@
       showJoinError('Enter the 6-digit code exactly as your teacher gave it.');
       return;
     }
+
     if(!name){
       showJoinError("Enter your name so your teacher can see you've joined.");
       return;
@@ -303,12 +408,14 @@
     await waitForLobbySupabase();
 
     const lobby = await window.LobbySupabase.findLobbyByCode(code);
+
     if(!lobby){
       showJoinError('No room found with that code. Double-check it and try again.');
       submitBtn.disabled = false;
       submitBtn.textContent = 'Join room';
       return;
     }
+
     if(lobby.status !== 'waiting'){
       showJoinError('This room has already started or finished.');
       submitBtn.disabled = false;
@@ -317,6 +424,7 @@
     }
 
     const player = await window.LobbySupabase.joinLobby(lobby.id, name);
+
     if(!player){
       showJoinError('Could not join the room — check your connection and try again.');
       submitBtn.disabled = false;
@@ -328,19 +436,20 @@
     joinPlayer = player;
 
     document.getElementById('join-player-name').textContent = name;
+
     hideAllJoinSteps();
     document.getElementById('join-waiting-step').style.display = 'block';
 
-    // Subscribe to lobby state changes via database updates
     window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
       const prevStatus = joinLobbyRow ? joinLobbyRow.status : null;
       const prevWordIndex = joinLobbyRow ? joinLobbyRow.current_word_index : null;
+
       joinLobbyRow = updatedLobby;
 
-      // Handle hints directly from database field
       showTeacherHint(updatedLobby.current_hint);
 
       if(updatedLobby.status === 'completed'){
+        joinStopTimer();
         hideAllJoinSteps();
         document.getElementById('join-done-step').style.display = 'block';
         return;
@@ -350,8 +459,11 @@
 
       const justStarted = prevStatus !== 'playing';
       const newWord = prevWordIndex !== updatedLobby.current_word_index;
+
       if(justStarted || newWord){
         joinStartWord();
+      } else if(document.getElementById('join-play-step').style.display !== 'none'){
+        joinRenderTimer();
       }
     });
   }
