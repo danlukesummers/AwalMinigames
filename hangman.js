@@ -545,6 +545,11 @@ function hgResetToSetup(){
     hgLobbyChannel = null;
   }
 
+  if(hgPresenceChannel && window.LobbySupabase){
+    window.LobbySupabase.unsubscribe(hgPresenceChannel);
+    hgPresenceChannel = null;
+  }
+
   hgLobby = null;
   document.getElementById('hg-setup').style.display = 'block';
 }
@@ -560,6 +565,7 @@ const hgRoom = {
 let hgLobby = null;
 let hgLobbyChannel = null;
 let hgProgressChannel = null;
+let hgPresenceChannel = null;   // tells us when a student's tab closes
 
 async function hgOpenRoom(){
   hgRoom.students = [];
@@ -596,6 +602,9 @@ async function hgOpenRoom(){
 
   document.getElementById('hg-room-code').textContent = lobby.code;
   document.getElementById('hg-room-link').textContent = window.location.origin + '/join.html?code=' + lobby.code;
+
+  if(hgPresenceChannel) window.LobbySupabase.unsubscribe(hgPresenceChannel);
+  hgPresenceChannel = window.LobbySupabase.watchPresence(lobby.id, hgHandleStudentLeft);
 
   if(hgLobbyChannel) window.LobbySupabase.unsubscribe(hgLobbyChannel);
 
@@ -970,6 +979,20 @@ function hgFinishStudent(student, won, word, timedOut){
       nextBtn.style.display = 'inline-flex';
     }
   }
+}
+
+/* ============ STUDENT LEFT THE LOBBY (tab closed) ============ */
+function hgHandleStudentLeft(playerId){
+  // Wait a few seconds: a phone that briefly loses signal reconnects by itself.
+  setTimeout(async () => {
+    if(!hgLobby || !window.LobbySupabase) return;
+    if(hgLobby.status !== 'waiting') return; // only the waiting room
+    if(window.LobbySupabase.isPresent(hgPresenceChannel, playerId)) return; // came back
+
+    // Removing them updates the lobby, which refreshes the roster and plays
+    // the leave sound through the existing lobby subscription.
+    await window.LobbySupabase.leaveLobby(hgLobby.id, playerId);
+  }, 4000);
 }
 
 async function hgDashNextWord(){
