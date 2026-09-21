@@ -21,27 +21,47 @@ function makePlayerId(){
   return 'player-' + Date.now() + '-' + Math.random().toString(16).slice(2);
 }
 
+// Runs a write. If Supabase says a column doesn't exist in the table,
+// that field is removed from the payload and the write is retried.
+async function safeWrite(build, payload){
+  const body = { ...payload };
+  for(let i = 0; i < 8; i++){
+    const result = await build(body);
+    const error = result.error;
+    if(!error) return result;
+
+    const msg = error.message || '';
+    const match = msg.match(/'([^']+)' column/) || msg.match(/column "?([a-z_]+)"?/i);
+    const col = match && match[1];
+    if(col && Object.prototype.hasOwnProperty.call(body, col)){
+      console.warn('[LobbySupabase] column "' + col + '" missing in table, retrying without it');
+      delete body[col];
+      continue;
+    }
+    return result;
+  }
+  return { data: null, error: { message: 'Too many missing columns' } };
+}
+
 /* ============ TEACHER ============ */
 
 async function createLobby(game, timeLimit){
-  // retry a few times in case a random code collides
   for(let attempt = 0; attempt < 3; attempt++){
     const code = generateLobbyCode();
-    const { data, error } = await supabase
-      .from('lobbies')
-      .insert({
+    const { data, error } = await safeWrite(
+      (p) => supabase.from('lobbies').insert(p).select().single(),
+      {
         code,
         game: game || 'hangman',
         status: 'waiting',
         players: [],
         time_limit: Number(timeLimit) || 0
-      })
-      .select()
-      .single();
+      }
+    );
 
     if(!error) return data;
 
-    // 23505 = unique violation (code already used) -> try a new code
+    // 23505 = code already used -> try a new one
     if(error.code === '23505') continue;
 
     recordError('createLobby', error);
@@ -53,19 +73,17 @@ async function createLobby(game, timeLimit){
 async function startLobbyGame(lobbyId, words, timeLimit){
   const roundStartedAt = new Date().toISOString();
 
-  const { data, error } = await supabase
-    .from('lobbies')
-    .update({
+  const { data, error } = await safeWrite(
+    (p) => supabase.from('lobbies').update(p).eq('id', lobbyId).select().single(),
+    {
       status: 'playing',
       words: words || [],
       current_word_index: 0,
       current_hint: null,
       time_limit: Number(timeLimit) || 0,
       round_started_at: roundStartedAt
-    })
-    .eq('id', lobbyId)
-    .select()
-    .single();
+    }
+  );
 
   if(error){
     recordError('startLobbyGame', error);
@@ -77,16 +95,14 @@ async function startLobbyGame(lobbyId, words, timeLimit){
 async function setLobbyWordIndex(lobbyId, wordIndex){
   const roundStartedAt = new Date().toISOString();
 
-  const { data, error } = await supabase
-    .from('lobbies')
-    .update({
+  const { data, error } = await safeWrite(
+    (p) => supabase.from('lobbies').update(p).eq('id', lobbyId).select().single(),
+    {
       current_word_index: wordIndex,
       current_hint: null,
       round_started_at: roundStartedAt
-    })
-    .eq('id', lobbyId)
-    .select()
-    .single();
+    }
+  );
 
   if(error){
     recordError('setLobbyWordIndex', error);
@@ -96,10 +112,10 @@ async function setLobbyWordIndex(lobbyId, wordIndex){
 }
 
 async function setLobbyHint(lobbyId, hintText){
-  const { error } = await supabase
-    .from('lobbies')
-    .update({ current_hint: hintText })
-    .eq('id', lobbyId);
+  const { error } = await safeWrite(
+    (p) => supabase.from('lobbies').update(p).eq('id', lobbyId),
+    { current_hint: hintText }
+  );
 
   if(error){
     recordError('setLobbyHint', error);
