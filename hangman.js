@@ -40,14 +40,50 @@ const hgState = {
   guessed: [],
   misses: 0,
   roundEnded: false,
-  timeLimit: 0
+  timeLimit: 0,
+  aiHints: {},
+  aiHintsKey: ''
 };
 
 const HG_PARTS = ['head','body','arm-l','arm-r','leg-l','leg-r'];
 
 function hgGetHintForWord(word) {
   if (!word) return '';
-  return HG_HINTS[word] || ('Starts with "' + word.charAt(0).toUpperCase() + '" and ends with "' + word.charAt(word.length - 1).toUpperCase() + '".');
+  return (hgState.aiHints && hgState.aiHints[word]) || HG_HINTS[word] || ('Starts with "' + word.charAt(0).toUpperCase() + '" and ends with "' + word.charAt(word.length - 1).toUpperCase() + '".');
+}
+
+/* ============ AI HINTS (simple A1) ============ */
+// Asks the server for one easy hint per word. Runs in the background when a
+// game starts; until it finishes (or if it fails) the built-in hints are used.
+async function hgFetchAIHints(words){
+  hgState.aiHints = {};
+  const key = words.join(',');
+  hgState.aiHintsKey = key;
+
+  try{
+    const res = await fetch('/api/generate-hints', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ words })
+    });
+
+    if(!res.ok) throw new Error('Server responded ' + res.status);
+
+    const data = await res.json();
+
+    if(hgState.aiHintsKey !== key) return; // a newer game has started
+
+    if(data && data.hints && typeof data.hints === 'object'){
+      hgState.aiHints = data.hints;
+
+      // If the teacher dashboard is already showing, refresh its hint preview
+      const preview = document.getElementById('hg-dash-hint-display');
+      const current = hgState.words[hgState.idx];
+      if(preview && current) preview.textContent = 'Current Hint Preview: ' + hgGetHintForWord(current);
+    }
+  } catch(e) {
+    console.warn('[hgFetchAIHints] using built-in hints instead:', e);
+  }
 }
 
 function hgSetPlan(plan){
@@ -251,6 +287,8 @@ function hgStartGame(solo){
   hgState.idx = 0;
   hgState.score = 0;
   hgState.roundEnded = false;
+
+  hgFetchAIHints(words); // background: simple A1 hints
 
   document.getElementById('hg-word-total').textContent = words.length;
   document.getElementById('hg-setup').style.display = 'none';
