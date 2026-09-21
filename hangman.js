@@ -45,6 +45,33 @@ const hgState = {
 
 const HG_PARTS = ['head','body','arm-l','arm-r','leg-l','leg-r'];
 
+/* ============ SOUND EFFECTS ============ */
+// NOTE: file names are case-sensitive on GitHub Pages / most servers.
+// They must match the files in your /sounds folder exactly.
+const hgSounds = {
+  correctLetter:   new Audio('sounds/correct_letter.mp3'),
+  incorrectLetter: new Audio('sounds/incorrect_letter.mp3'),
+  correctAnswer:   new Audio('sounds/correct_answer.mp3'),
+  incorrectAnswer: new Audio('sounds/Incorrect_answer.mp3'),
+  join:            new Audio('sounds/join_lobby.mp3'),
+  leave:           new Audio('sounds/leave_lobby.mp3')
+};
+
+Object.values(hgSounds).forEach(a => { a.preload = 'auto'; });
+
+let hgMuted = false;
+
+function hgPlaySound(name){
+  if(hgMuted) return;
+  const s = hgSounds[name];
+  if(!s) return;
+  try {
+    s.currentTime = 0;
+    const p = s.play();
+    if(p && p.catch) p.catch(() => {}); // ignore browser autoplay blocks
+  } catch(e) {}
+}
+
 function hgGetHintForWord(word) {
   if (!word) return '';
   return HG_HINTS[word] || ('Starts with "' + word.charAt(0).toUpperCase() + '" and ends with "' + word.charAt(word.length - 1).toUpperCase() + '".');
@@ -345,6 +372,21 @@ async function hgSendBroadcastHint(event){
   }
 }
 
+/* ============ LETTER COLOURS ============ */
+const HG_COLOR_FOUND  = { bg: '#39FF14', fg: '#0b0b0b' }; // guessed correctly
+const HG_COLOR_MISSED = { bg: '#FF4B4B', fg: '#ffffff' }; // revealed after a loss
+
+function hgLetterStyle(state){
+  // state: 'found' | 'missed' | 'hidden'
+  if(state === 'found'){
+    return 'background:' + HG_COLOR_FOUND.bg + ';color:' + HG_COLOR_FOUND.fg + ';border-color:' + HG_COLOR_FOUND.bg + ';transition:background .25s,color .25s;';
+  }
+  if(state === 'missed'){
+    return 'background:' + HG_COLOR_MISSED.bg + ';color:' + HG_COLOR_MISSED.fg + ';border-color:' + HG_COLOR_MISSED.bg + ';';
+  }
+  return '';
+}
+
 function hgRenderWord(){
   const word = hgState.words[hgState.idx];
   const wrap = document.getElementById('hg-word-display');
@@ -353,7 +395,7 @@ function hgRenderWord(){
 
   wrap.innerHTML = word.split('').map(ch => {
     const shown = hgState.guessed.includes(ch);
-    return '<div class="hg-letter-box">' + (shown ? ch : '') + '</div>';
+    return '<div class="hg-letter-box" style="' + hgLetterStyle(shown ? 'found' : 'hidden') + '">' + (shown ? ch : '') + '</div>';
   }).join('');
 }
 
@@ -390,7 +432,9 @@ function hgGuess(letter, btn){
 
     if(solved){
       hgState.score++;
-      hgWordEnd(true);
+      hgWordEnd(true); // plays the "correct answer" sound
+    } else {
+      hgPlaySound('correctLetter');
     }
   } else {
     btn.classList.add('wrong');
@@ -406,7 +450,11 @@ function hgGuess(letter, btn){
       if(el) el.style.display = 'block';
     }
 
-    if(hgState.misses >= 6) hgWordEnd(false);
+    if(hgState.misses >= 6){
+      hgWordEnd(false); // plays the "incorrect answer" sound
+    } else {
+      hgPlaySound('incorrectLetter');
+    }
   }
 }
 
@@ -423,15 +471,20 @@ function hgWordEnd(won){
   const wordWrap = wordDisplay ? wordDisplay.parentElement : null;
 
   if (wordDisplay) {
-    wordDisplay.innerHTML = word.split('').map(ch => '<div class="hg-letter-box">' + ch + '</div>').join('');
+    wordDisplay.innerHTML = word.split('').map(ch => {
+      const state = hgState.guessed.includes(ch) ? 'found' : (won ? 'found' : 'missed');
+      return '<div class="hg-letter-box" style="' + hgLetterStyle(state) + '">' + ch + '</div>';
+    }).join('');
   }
 
   if(won){
+    hgPlaySound('correctAnswer');
     fb.textContent = '🎉 Correct! The word was "' + word + '"';
     fb.className = 'hg-feedback win';
 
     if (wordWrap) hgPlayWinAnimation(wordWrap);
   } else {
+    hgPlaySound('incorrectAnswer');
     fb.textContent = '💀 Out of guesses. The word was "' + word + '"';
     fb.className = 'hg-feedback lose';
 
@@ -575,6 +628,16 @@ async function hgOpenRoom(){
 
   hgLobbyChannel = window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
     hgLobby = updatedLobby;
+
+    // Play join / leave sounds by comparing the old and new player lists
+    const prevIds = hgRoom.students.map(s => s.id);
+    const newIds = (updatedLobby.players || []).map(p => p.id);
+
+    if(newIds.some(id => !prevIds.includes(id))){
+      hgPlaySound('join');
+    } else if(prevIds.some(id => !newIds.includes(id))){
+      hgPlaySound('leave');
+    }
 
     hgRoom.students = (updatedLobby.players || []).map((p, i) => ({
       id: p.id,
@@ -840,8 +903,17 @@ function hgApplyProgressRow(row){
 
   const word = hgState.words[hgState.idx];
 
+  const prevGuessCount = (student.guessed || []).length;
+  const prevMisses = student.misses || 0;
+
   student.guessed = row.guessed || [];
   student.misses = row.misses || 0;
+
+  // Teacher-side sounds for a student's individual guesses (not the final one,
+  // since hgFinishStudent plays the answer sound below)
+  if(!row.done && student.guessed.length > prevGuessCount){
+    hgPlaySound(student.misses > prevMisses ? 'incorrectLetter' : 'correctLetter');
+  }
 
   hgRenderDashboardCard(student, word);
 
@@ -853,10 +925,25 @@ function hgRenderDashboardCard(student, word){
 
   if(!wordEl) return;
 
-  // Teacher sees the complete word immediately.
-  wordEl.innerHTML = word.split('').map(ch =>
-    '<div class="hg-dash-letter">' + ch + '</div>'
-  ).join('');
+  // Teacher sees the complete word immediately. Letters the student has
+  // guessed turn green; unguessed ones are dimmed. If the student lost,
+  // the letters they never found are revealed in red.
+  const lost = student.done && !student.won;
+
+  wordEl.innerHTML = word.split('').map(ch => {
+    const found = student.guessed.includes(ch);
+    let style;
+
+    if(found){
+      style = hgLetterStyle('found');
+    } else if(lost){
+      style = hgLetterStyle('missed');
+    } else {
+      style = 'opacity:0.45;';
+    }
+
+    return '<div class="hg-dash-letter" style="' + style + '">' + ch + '</div>';
+  }).join('');
   
   const guessesEl = document.getElementById(student.id + '-guesses');
 
@@ -881,22 +968,19 @@ function hgFinishStudent(student, won, word, timedOut){
   if(!card || !statusEl) return;
 
   if(won){
+    hgPlaySound('correctAnswer');
     card.classList.remove('hg-lost');
     card.classList.add('hg-won');
     statusEl.textContent = 'SOLVED ✓';
     hgPlayWinAnimation(card);
   } else {
+    hgPlaySound('incorrectAnswer');
     card.classList.remove('hg-won');
     card.classList.add('hg-lost');
     statusEl.textContent = timedOut ? 'TIME UP' : 'OUT OF GUESSES';
     
-    const wordEl = document.getElementById(student.id + '-word');
-
-    if (wordEl) {
-      wordEl.innerHTML = word.split('').map(ch =>
-        '<div class="hg-dash-letter">' + ch + '</div>'
-      ).join('');
-    }
+    // Re-render so found letters stay green and missed ones show in red
+    hgRenderDashboardCard(student, word);
 
     hgPlayLoseAnimation(card);
   }
