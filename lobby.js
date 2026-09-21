@@ -16,11 +16,17 @@ function makePlayerId(){
 
 /* ============ TEACHER ============ */
 
-async function createLobby(game){
+async function createLobby(game, timeLimit){
   const code = generateLobbyCode();
   const { data, error } = await supabase
     .from('lobbies')
-    .insert({ code, game: game || 'hangman', status: 'waiting', players: [] })
+    .insert({
+      code,
+      game: game || 'hangman',
+      status: 'waiting',
+      players: [],
+      time_limit: Number(timeLimit) || 0
+    })
     .select()
     .single();
 
@@ -31,30 +37,51 @@ async function createLobby(game){
   return data;
 }
 
-async function startLobbyGame(lobbyId, words){
-  const { error } = await supabase
+async function startLobbyGame(lobbyId, words, timeLimit){
+  const roundStartedAt = new Date().toISOString();
+
+  const { data, error } = await supabase
     .from('lobbies')
-    .update({ status: 'playing', words: words || [], current_word_index: 0, current_hint: null })
-    .eq('id', lobbyId);
+    .update({
+      status: 'playing',
+      words: words || [],
+      current_word_index: 0,
+      current_hint: null,
+      time_limit: Number(timeLimit) || 0,
+      round_started_at: roundStartedAt
+    })
+    .eq('id', lobbyId)
+    .select()
+    .single();
 
   if(error){
     console.error('[LobbySupabase] startLobbyGame error:', error);
-    return false;
+    return null;
   }
-  return true;
+
+  return data;
 }
 
 async function setLobbyWordIndex(lobbyId, wordIndex){
-  const { error } = await supabase
+  const roundStartedAt = new Date().toISOString();
+
+  const { data, error } = await supabase
     .from('lobbies')
-    .update({ current_word_index: wordIndex, current_hint: null })
-    .eq('id', lobbyId);
+    .update({
+      current_word_index: wordIndex,
+      current_hint: null,
+      round_started_at: roundStartedAt
+    })
+    .eq('id', lobbyId)
+    .select()
+    .single();
 
   if(error){
     console.error('[LobbySupabase] setLobbyWordIndex error:', error);
-    return false;
+    return null;
   }
-  return true;
+
+  return data;
 }
 
 async function setLobbyHint(lobbyId, hintText){
