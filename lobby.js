@@ -198,8 +198,6 @@ async function leaveLobby(lobbyId, playerId){
 
 /* ============ PRESENCE: knows when a student closes their tab ============ */
 
-// STUDENT: announce "I'm here". When the tab/browser closes, the connection
-// drops and Supabase tells everyone watching that this player left.
 function trackPresence(lobbyId, player){
   const channel = supabase.channel('presence-' + lobbyId, {
     config: { presence: { key: player.id } }
@@ -214,7 +212,6 @@ function trackPresence(lobbyId, player){
   return channel;
 }
 
-// TEACHER: get told when a student's presence disappears.
 function watchPresence(lobbyId, onLeave){
   const channel = supabase.channel('presence-' + lobbyId, {
     config: { presence: { key: 'teacher-' + makePlayerId() } }
@@ -227,14 +224,13 @@ function watchPresence(lobbyId, onLeave){
   return channel;
 }
 
-// True if this player currently has a live connection on the channel.
 function isPresent(channel, playerId){
   if(!channel) return false;
   const state = channel.presenceState();
   return Object.prototype.hasOwnProperty.call(state, playerId);
 }
 
-/* ============ SHARED: per-student live guessing progress ============ */
+/* ============ SHARED: per-student live guessing progress (Hangman) ============ */
 
 async function upsertProgress(lobbyId, playerId, playerName, wordIndex, guessed, misses, done, won){
   const { error } = await supabase
@@ -284,6 +280,81 @@ function subscribeToProgress(lobbyId, onChange){
   return channel;
 }
 
+/* ============ WORD ASSOCIATION: shared game_state blob on lobbies ============ */
+// Word Association is turn-based, so (unlike Hangman) all the live state --
+// turn order, whose turn it is, the growing chain, scores -- lives in one
+// place: lobbies.game_state. Every client subscribes to the lobby row
+// (subscribeToLobby, below) and re-renders from game_state. Nothing here
+// touches Hangman's columns or lobby_progress.
+
+async function startWordAssociationGame(lobbyId, initialState, timeLimit){
+  const roundStartedAt = new Date().toISOString();
+
+  const { data, error } = await safeWrite(
+    (p) => supabase.from('lobbies').update(p).eq('id', lobbyId).select().single(),
+    {
+      status: 'playing',
+      game_state: initialState,
+      time_limit: Number(timeLimit) || 0,
+      round_started_at: roundStartedAt
+    }
+  );
+
+  if(error){
+    recordError('startWordAssociationGame', error);
+    return null;
+  }
+  return data;
+}
+
+// Reads the current game_state, applies patchFn to it, and writes the
+// result back, also stamping round_started_at -- this is what gives every
+// new turn a fresh timer window for free. Not transactional (same trust
+// model as the rest of this file): fine for a live classroom room where
+// only the player whose turn it is should be writing at any moment.
+async function updateGameState(lobbyId, patchFn){
+  const { data: lobby, error: fetchError } = await supabase
+    .from('lobbies')
+    .select('game_state')
+    .eq('id', lobbyId)
+    .single();
+
+  if(fetchError){
+    recordError('updateGameState fetch', fetchError);
+    return null;
+  }
+
+  const nextState = patchFn(lobby.game_state || {});
+
+  const { data, error } = await supabase
+    .from('lobbies')
+    .update({ game_state: nextState, round_started_at: new Date().toISOString() })
+    .eq('id', lobbyId)
+    .select()
+    .single();
+
+  if(error){
+    recordError('updateGameState update', error);
+    return null;
+  }
+  return data;
+}
+
+async function endWordAssociationGame(lobbyId){
+  const { data, error } = await supabase
+    .from('lobbies')
+    .update({ status: 'completed' })
+    .eq('id', lobbyId)
+    .select()
+    .single();
+
+  if(error){
+    recordError('endWordAssociationGame', error);
+    return null;
+  }
+  return data;
+}
+
 /* ============ SHARED: realtime ============ */
 
 function subscribeToLobby(lobbyId, onUpdate){
@@ -318,6 +389,9 @@ window.LobbySupabase = {
   upsertProgress,
   fetchProgress,
   subscribeToProgress,
+  startWordAssociationGame,
+  updateGameState,
+  endWordAssociationGame,
   subscribeToLobby,
   unsubscribe
 };
