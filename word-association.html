@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Association — AWAL Minigames</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <nav>
+    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;" onmouseenter="showGamesDrop()" onmouseleave="scheduleHideGamesDrop()"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL<span class="cb-logo-badge" onclick="event.preventDefault(); event.stopPropagation(); window.location.href='games.html';">MINIGAMES</span></a>
+    <div class="nav-links">
+      <a href="index.html#how">How it works</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="about.html">About</a>
+      <a href="index.html#faq">FAQ</a>
+    </div>
+    <a href="login.html" class="btn btn-primary" style="text-decoration:none;">Start Free</a>
+  </nav>
+
+  <div class="games-drop" id="games-drop" onmouseenter="cancelHideGamesDrop()" onmouseleave="scheduleHideGamesDrop()">
+    <div class="games-drop-track" id="games-drop-track"></div>
+  </div>
+</header>
+
+<div id="page-word-association" class="page">
+  <div class="wa-world">
+    <div class="wa-banner">
+      <div class="wrap wa-banner-inner">
+        <a href="games.html" class="wa-back">← Game Library</a>
+        <span class="wa-badge">BETA</span>
+        <div class="wa-title-block">
+          <div class="wa-link-icon">🔗</div>
+          <h1 class="wa-title">WORD ASSOCIATION</h1>
+          <p class="wa-tagline">Keep the chain alive — say a word before time runs out.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="hangman-shell">
+
+        <!-- SETUP SCREEN -->
+        <div id="wa-setup" class="wa-panel">
+          <div class="wa-setup-head">
+            <h2 style="font-size:24px; margin-bottom:6px;">Set up your Word Association game</h2>
+            <p style="color:var(--ink-soft); font-size:14.5px;">Pick a starting word and let the chain grow.</p>
+          </div>
+
+          <div class="field" style="max-width:440px;">
+            <label>Starting word</label>
+            <div style="display:flex; gap:10px;">
+              <input type="text" id="wa-topic-input" placeholder="e.g. ocean" style="flex:1; padding:13px 16px; border-radius:12px; border:3px solid var(--ink); font-family:'Space Grotesk'; font-size:14.5px; background:white; color:#1E1B2E;">
+              <button class="btn btn-ghost btn-sm" onclick="waRandomTopic()" type="button">🎲 Random</button>
+            </div>
+          </div>
+
+          <div class="field" style="max-width:320px;">
+            <label>Time per turn</label>
+            <select id="wa-time-limit" onchange="waUpdateTimeLimit(this.value)" style="width:100%; padding:12px 14px; border-radius:12px; border:3px solid var(--ink); font-family:'Space Grotesk'; font-size:14.5px; background:white;">
+              <option value="0" selected>No time limit</option>
+              <option value="10">10 seconds</option>
+              <option value="15">15 seconds</option>
+              <option value="20">20 seconds</option>
+              <option value="30">30 seconds</option>
+              <option value="45">45 seconds</option>
+              <option value="60">60 seconds</option>
+            </select>
+          </div>
+
+          <div class="field" style="max-width:320px;">
+            <label>Chain length (<span id="wa-chain-label">10</span> words)</label>
+            <input type="range" id="wa-chain-count" min="5" max="20" value="10" oninput="waUpdateChainLength(this.value)" style="width:100%;">
+          </div>
+
+          <button class="btn btn-primary btn-block" style="margin-top:28px;" onclick="waCreateRoom()">🔗 Create classroom room</button>
+          <p id="wa-start-error" style="color:var(--wa-hot); font-size:13.5px; margin-top:10px; text-align:center; display:none;"></p>
+        </div>
+
+        <!-- ROOM SCREEN -->
+        <div id="wa-room" class="wa-panel" style="display:none;">
+          <div style="text-align:center; margin-bottom:24px;">
+            <h2 style="font-size:22px; margin-bottom:6px;">Your classroom room is live</h2>
+            <p style="color:var(--ink-soft); font-size:14px;">Share the code or link below. Players join, then take turns adding a word.</p>
+          </div>
+
+          <div class="code-box" style="max-width:320px; margin:0 auto 20px;">
+            <div class="cb-label">Room code</div>
+            <div class="cb-code" id="wa-room-code">0000</div>
+          </div>
+
+          <div class="copy-field-label" style="text-align:center;">Player link</div>
+          <div class="copy-field" style="max-width:420px; margin:0 auto 24px;">
+            <span id="wa-room-link" class="mono">...</span>
+            <button onclick="waCopyRoomLink()" id="wa-room-copy-btn">Copy</button>
+          </div>
+
+          <div id="wa-roster" class="hg-roster"></div>
+
+          <p style="text-align:center; font-size:12.5px; color:var(--ink-soft); margin:16px 0 4px;">
+            Word Association needs at least 2 players to pass the turn around.
+          </p>
+
+          <button class="btn btn-primary btn-block" style="margin-top:16px;" onclick="waBeginRound()" id="wa-begin-btn" disabled>▶ Begin round (0 players joined)</button>
+        </div>
+
+        <!-- DASHBOARD SCREEN -->
+        <div id="wa-dashboard" class="wa-panel" style="display:none;">
+          <div class="wa-play-top">
+            <span class="mono">Chain: <strong id="wa-dash-progress">0 / 10 words</strong></span>
+            <span class="mono" id="wa-dash-timer">No time limit</span>
+          </div>
+
+          <div class="wa-current-card">
+            <div class="wa-current-label">Current word</div>
+            <div class="wa-current-word" id="wa-current-word">–</div>
+            <div class="wa-turn-banner" id="wa-turn-banner">–</div>
+          </div>
+
+          <div class="wa-dash-grid">
+            <div>
+              <div class="wa-panel-label">Chain so far</div>
+              <div id="wa-chain-list" class="wa-chain-list"></div>
+            </div>
+            <div>
+              <div class="wa-panel-label">Scoreboard</div>
+              <div id="wa-scoreboard" class="wa-scoreboard"></div>
+            </div>
+          </div>
+
+          <div style="text-align:center; margin-top:22px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="waSkipTurn(false)" id="wa-skip-btn">⏭ Skip this turn</button>
+            <button class="btn btn-dark" onclick="waEndRound()" id="wa-next-round-btn" style="display:none;">See results →</button>
+          </div>
+        </div>
+
+        <!-- SUMMARY SCREEN -->
+        <div id="wa-summary" class="wa-panel" style="display:none; text-align:center;">
+          <div style="font-size:44px; margin-bottom:6px;">🔗</div>
+          <h2 style="font-size:26px; margin-bottom:10px;">Chain complete!</h2>
+          <p style="color:var(--ink-soft); font-size:16px; margin-bottom:20px;" id="wa-summary-line"></p>
+          <div id="wa-summary-board" class="wa-scoreboard" style="max-width:320px; margin:0 auto 28px;"></div>
+          <button class="btn btn-primary" onclick="waResetToSetup()">🔁 Play again</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; width:100%;">
+    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL</a>
+    <div>© 2026 AWAL. Made for teachers who'd rather listen than lecture.</div>
+  </div>
+</footer>
+
+<script src="sounds.js"></script>
+<script type="module" src="lobby.js"></script>
+<script src="main.js"></script>
+<script src="word-association.js"></script>
+</body>
+</html>
