@@ -136,10 +136,20 @@
             <span class="mono" id="wa-dash-timer">No time limit</span>
           </div>
 
-          <div class="wa-current-card">
+            <div class="wa-current-card">
             <div class="wa-current-label">Current word</div>
             <div class="wa-current-word" id="wa-current-word">–</div>
             <div class="wa-turn-banner" id="wa-turn-banner">–</div>
+
+            <!-- Shown only when it's the TEACHER's turn (Teacher vs Student mode) -->
+            <div id="wa-teacher-input-wrap" style="display:none; margin-top:16px; max-width:360px; margin-left:auto; margin-right:auto;">
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="wa-teacher-word-input" placeholder="Type your word…" autocomplete="off"
+                  style="flex:1; padding:11px 14px; border-radius:10px; border:1.5px solid var(--line); font-family:'Space Grotesk'; font-size:14.5px; background:white; color:#1E1B2E;">
+                <button class="btn btn-primary btn-sm" onclick="waSubmitTeacherWord()" id="wa-teacher-submit-btn">Send</button>
+              </div>
+              <p id="wa-teacher-error" style="color:var(--wa-hot); font-size:12.5px; margin-top:8px; display:none;"></p>
+            </div>
           </div>
 
           <div class="wa-dash-grid">
