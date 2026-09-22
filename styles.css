@@ -1388,6 +1388,26 @@
   --coral:#8FE000; --coral-deep:#6FB800; --wa-hot:#FF6B4A; --line:rgba(242,255,249,0.14);
   background:#071A14; min-height:100vh; padding-bottom:90px; color:#F2FFF9;
 }
+/* ===== WORD ASSOCIATION: plan row + mode cards ===== */
+.wa-plan-row{display:flex; align-items:center; gap:16px; margin-bottom:26px; flex-wrap:wrap;}
+.wa-plan-row .toggle{display:inline-flex; background:var(--chalk-dim); border-radius:10px; padding:5px; border:3px solid var(--ink);}
+.wa-plan-row .toggle button{border:none; background:transparent; padding:9px 18px; border-radius:10px; font-weight:700; font-size:13.5px; cursor:pointer; color:var(--ink-soft); font-family:'Space Grotesk';}
+.wa-plan-row .toggle button.active{background:var(--ink); color:var(--chalk);}
+
+.wa-mode-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin:24px 0;}
+.wa-mode-card{border:3px solid var(--ink); border-radius:10px; padding:22px; cursor:pointer; transition:all .15s ease; position:relative; background:white;}
+.wa-mode-card:hover:not(.locked){border-color:var(--coral);}
+.wa-mode-card.active{border-color:var(--coral); background:#F2FFE0; box-shadow:0 0 0 3px rgba(143,224,0,0.15);}
+.wa-mode-card.locked{opacity:0.55; cursor:not-allowed;}
+.wa-mode-card.locked:hover{transform:none !important;}
+.wa-mode-num{width:26px; height:26px; border-radius:50%; background:var(--ink); color:var(--chalk); font-family:'Space Mono'; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-bottom:12px;}
+.wa-mode-card.active .wa-mode-num{background:var(--coral);}
+.wa-mode-lock{display:none; margin-top:8px; font-size:12px; font-weight:700; color:var(--wa-hot);}
+.wa-paid-pill{display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:0.04em; background:var(--sunshine,#FFD23F); color:#1E1B2E; border-radius:999px; padding:2px 8px; margin-left:6px; vertical-align:middle;}
+
+@media (max-width:940px){
+  .wa-mode-grid{grid-template-columns:1fr;}
+}
 .wa-banner{position:relative; overflow:hidden; padding:54px 0 46px; background:radial-gradient(circle at 50% 0%, #123B2B, #071A14 70%); border-bottom:1px solid rgba(242,255,249,0.08);}
 .wa-banner-inner{position:relative; text-align:center;}
 .wa-back{position:absolute; left:32px; top:2px; font-size:13px; font-weight:700; color:rgba(242,255,249,0.55); transition:color .15s ease;}
