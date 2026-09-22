@@ -59,7 +59,7 @@
       <div style="margin:20px auto 0; width:32px; height:32px; border:3px solid var(--line); border-top-color:var(--coral); border-radius:50%; animation:join-spin 0.8s linear infinite;"></div>
     </div>
 
-    <!-- STEP 3: live play -- student guesses letters here, on their own device -->
+    <!-- STEP 3: live play -- Hangman -->
     <div id="join-play-step" style="display:none; text-align:left;">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
         <span class="mono" style="font-size:13px; color:var(--ink-soft);">Word <span id="join-word-idx">1</span> / <span id="join-word-total">–</span></span>
@@ -95,7 +95,33 @@
       <div id="join-keyboard" class="hg-keyboard"></div>
     </div>
 
-    <!-- STEP 4: this student is done with the current word, others still going -->
+    <!-- STEP 3b: live play -- Word Association (turn-based) -->
+    <div id="join-wa-play-step" style="display:none; text-align:left;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;">
+        <span class="mono" style="font-size:13px; color:var(--ink-soft);">Word <span id="wa-join-count">0</span> / <span id="wa-join-total">–</span></span>
+        <span id="wa-join-timer" class="mono" style="font-size:13px; color:var(--ink-soft); font-weight:700; display:none;">⏱ 0s</span>
+      </div>
+
+      <div style="text-align:center; background:var(--chalk-dim); border-radius:14px; padding:20px; margin-bottom:16px;">
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft); font-weight:700; margin-bottom:8px;">Current word</div>
+        <div id="wa-join-current-word" style="font-family:'Bungee'; font-size:26px; color:var(--coral-deep); text-transform:uppercase;">–</div>
+      </div>
+
+      <p id="wa-join-turn-msg" style="text-align:center; font-weight:700; font-size:14.5px; margin-bottom:14px;">–</p>
+
+      <div id="wa-join-input-wrap" style="display:none; margin-bottom:14px;">
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="wa-join-word-input" placeholder="Type a related word…" autocomplete="off"
+            style="flex:1; padding:12px 14px; border-radius:10px; border:1.5px solid var(--line); font-family:'Space Grotesk'; font-size:15px;">
+          <button class="btn btn-primary" onclick="waJoinSubmit()" id="wa-join-submit-btn">Send</button>
+        </div>
+        <p id="wa-join-error" style="color:var(--coral-deep); font-size:12.5px; margin-top:8px; display:none;"></p>
+      </div>
+
+      <div id="wa-join-chain" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;"></div>
+    </div>
+
+    <!-- STEP 4: this student is done with the current word, others still going (Hangman only) -->
     <div id="join-waiting-others-step" style="display:none;">
       <div style="font-size:38px; margin-bottom:10px;">⏳</div>
       <h1 style="font-size:20px; margin-bottom:8px;" id="join-waiting-others-title">Nice work!</h1>
@@ -106,7 +132,7 @@
     <div id="join-done-step" style="display:none;">
       <div style="font-size:38px; margin-bottom:10px;">🏁</div>
       <h1 style="font-size:20px; margin-bottom:8px;">That's the round!</h1>
-      <p style="color:var(--ink-soft); font-size:14px;">Check your teacher's screen to see how the class did.</p>
+      <p style="color:var(--ink-soft); font-size:14px;">Check your teacher's screen to see how it went.</p>
     </div>
 
   </div>
@@ -115,7 +141,6 @@
 <style>
   @keyframes join-spin { to { transform: rotate(360deg); } }
 
-  /* Subtle swinging animation for the hangman figure */
   @keyframes hg-swing {
     0% { transform: rotate(0deg); }
     25% { transform: rotate(1.5deg); }
@@ -128,7 +153,7 @@
     animation: hg-swing 3.5s ease-in-out infinite;
   }
 
-  #join-timer.active {
+  #join-timer.active, #wa-join-timer.active {
     color:var(--coral-deep);
   }
 
@@ -174,9 +199,9 @@
     if(code) document.getElementById('join-code-input').value = code;
   });
 
-  /* ============ LETTER COLOURS ============ */
-  const JOIN_COLOR_FOUND  = { bg: '#39FF14', fg: '#0b0b0b' }; // guessed correctly
-  const JOIN_COLOR_MISSED = { bg: '#FF4B4B', fg: '#ffffff' }; // revealed after a loss
+  /* ============ LETTER COLOURS (Hangman) ============ */
+  const JOIN_COLOR_FOUND  = { bg: '#39FF14', fg: '#0b0b0b' };
+  const JOIN_COLOR_MISSED = { bg: '#FF4B4B', fg: '#ffffff' };
 
   function joinLetterStyle(state){
     if(state === 'found'){
@@ -188,9 +213,6 @@
     return '';
   }
 
-  // Reveals the whole word: letters the student found are green, the rest red.
-  // Draws the word. A "/" splits it into separate lines; letters never wrap.
-  // reveal = true shows every letter (found = green, missed = red).
   function joinDrawWord(word, reveal){
     const el = document.getElementById('join-word-display');
     const lines = word.split('/').map(l => l.trim()).filter(Boolean);
@@ -231,11 +253,11 @@
   }
 
   function hideAllJoinSteps(){
-    ['join-form-step','join-waiting-step','join-play-step','join-waiting-others-step','join-done-step']
+    ['join-form-step','join-waiting-step','join-play-step','join-wa-play-step','join-waiting-others-step','join-done-step']
       .forEach(id => document.getElementById(id).style.display = 'none');
   }
 
-  /* ============ live game state for this student ============ */
+  /* ============ live game state (Hangman) ============ */
   let joinLobbyRow = null;
   let joinPlayer = null;
   let joinPresenceChannel = null;
@@ -385,7 +407,7 @@
 
     if(word.includes(letter)){
       btn.classList.add('correct');
-      joinRenderWord(); // found letters turn green
+      joinRenderWord();
       won = word.split('').every(ch => ch === '/' || joinGuessed.includes(ch));
     } else {
       btn.classList.add('wrong');
@@ -409,7 +431,7 @@
         fb.className = 'hg-feedback win';
       } else {
         AwalSounds.play('incorrectAnswer');
-        joinRevealWord(word); // found = green, missed = red
+        joinRevealWord(word);
 
         fb.innerHTML = '💀 Out of guesses. The word was "' + word + '"<br><span style="font-size:13px; opacity:0.8; font-weight:normal;">Waiting for your teacher to move to the next word…</span>';
         fb.className = 'hg-feedback lose';
@@ -456,6 +478,136 @@
     joinRenderTimer();
   }
 
+  /* ============ live game state (Word Association) ============ */
+  let waJoinTimerInterval = null;
+
+  function waJoinStopTimer(){
+    if(waJoinTimerInterval){ clearInterval(waJoinTimerInterval); waJoinTimerInterval = null; }
+  }
+
+  function waJoinRenderTimer(lobby){
+    const timerEl = document.getElementById('wa-join-timer');
+    if(!timerEl) return;
+
+    const limit = Number(lobby.time_limit) || 0;
+
+    if(!limit || !lobby.round_started_at){
+      waJoinStopTimer();
+      timerEl.style.display = 'none';
+      return;
+    }
+
+    timerEl.style.display = 'inline-block';
+
+    const tick = () => {
+      const startedAt = new Date(lobby.round_started_at).getTime();
+      const remaining = Math.max(0, Math.ceil((limit * 1000 - (Date.now() - startedAt)) / 1000));
+      timerEl.textContent = '⏱ ' + remaining + 's';
+      timerEl.classList.toggle('active', remaining <= 5);
+      if(remaining <= 0) waJoinStopTimer();
+    };
+
+    waJoinStopTimer();
+    tick();
+    waJoinTimerInterval = setInterval(tick, 250);
+  }
+
+  function waJoinRender(lobby){
+    const state = lobby.game_state || {};
+    const order = state.order || [];
+    const chain = state.chain || [];
+    const isMyTurn = order[state.turnIndex] === joinPlayer.id;
+    const lastWord = chain.length ? chain[chain.length - 1].word : state.topic;
+
+    document.getElementById('wa-join-count').textContent = chain.length;
+    document.getElementById('wa-join-total').textContent = state.targetChainLength || '–';
+    document.getElementById('wa-join-current-word').textContent = (lastWord || '–').toUpperCase();
+
+    const msgEl = document.getElementById('wa-join-turn-msg');
+    const inputWrap = document.getElementById('wa-join-input-wrap');
+    const errEl = document.getElementById('wa-join-error');
+
+    if(errEl) errEl.style.display = 'none';
+
+    if(state.ended){
+      waJoinStopTimer();
+      if(msgEl) msgEl.textContent = "🏁 The chain is complete — check your teacher's screen!";
+      if(inputWrap) inputWrap.style.display = 'none';
+    } else if(isMyTurn){
+      if(msgEl) msgEl.textContent = "🔥 It's your turn!";
+      if(inputWrap){
+        inputWrap.style.display = 'block';
+        const input = document.getElementById('wa-join-word-input');
+        if(input){ input.value = ''; input.disabled = false; setTimeout(() => input.focus(), 50); }
+        const btn = document.getElementById('wa-join-submit-btn');
+        if(btn) btn.disabled = false;
+      }
+      waJoinRenderTimer(lobby);
+    } else {
+      if(msgEl) msgEl.textContent = 'Waiting for the next player…';
+      if(inputWrap) inputWrap.style.display = 'none';
+      waJoinRenderTimer(lobby);
+    }
+
+    const chainWrap = document.getElementById('wa-join-chain');
+    if(chainWrap){
+      chainWrap.innerHTML = chain.slice().reverse().slice(0, 8).map(link => {
+        const mine = link.playerId === joinPlayer.id;
+        const label = link.skipped ? '(skipped)' : link.word;
+        return '<div style="font-size:12.5px; color:var(--ink-soft);"><strong style="color:' + (mine ? 'var(--coral-deep)' : 'var(--ink)') + ';">' + (mine ? 'You' : '') + '</strong> ' + label + '</div>';
+      }).join('');
+    }
+  }
+
+  async function waJoinSubmit(){
+    const input = document.getElementById('wa-join-word-input');
+    const errEl = document.getElementById('wa-join-error');
+    const btn = document.getElementById('wa-join-submit-btn');
+    const word = input ? input.value.trim().toLowerCase() : '';
+
+    if(errEl) errEl.style.display = 'none';
+
+    if(!word || !/^[a-z][a-z\s-]*$/.test(word)){
+      if(errEl){ errEl.textContent = 'Enter a single word (letters only).'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    const state = joinLobbyRow.game_state || {};
+
+    if((state.usedWords || []).includes(word)){
+      if(errEl){ errEl.textContent = 'That word has already been used — try another.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    if(btn) btn.disabled = true;
+
+    const updated = await window.LobbySupabase.updateGameState(joinLobbyRow.id, (s) => {
+      if(s.ended) return s;
+      const order = s.order || [];
+      if(order[s.turnIndex] !== joinPlayer.id) return s;
+
+      const newChain = [...(s.chain || []), { playerId: joinPlayer.id, playerName: joinPlayer.name, word, ts: Date.now() }];
+
+      return {
+        ...s,
+        chain: newChain,
+        usedWords: [...(s.usedWords || []), word],
+        scores: { ...(s.scores || {}), [joinPlayer.id]: ((s.scores && s.scores[joinPlayer.id]) || 0) + 1 },
+        turnIndex: (s.turnIndex + 1) % order.length,
+        ended: newChain.length >= s.targetChainLength
+      };
+    });
+
+    if(updated){
+      joinLobbyRow = updated;
+      AwalSounds.play('correctLetter');
+      waJoinRender(updated);
+    } else if(btn){
+      btn.disabled = false;
+    }
+  }
+
+  /* ============ shared join flow ============ */
   async function handleJoinSubmit(){
     document.getElementById('join-error').style.display = 'none';
 
@@ -476,7 +628,6 @@
     submitBtn.disabled = true;
     submitBtn.textContent = 'Joining…';
 
-    // Unlock audio on mobile (must happen inside this click)
     AwalSounds.unlock();
 
     await waitForLobbySupabase();
@@ -509,7 +660,6 @@
     joinLobbyRow = lobby;
     joinPlayer = player;
 
-    // Tell the teacher we're here. When this tab closes, the teacher is told we left.
     joinPresenceChannel = window.LobbySupabase.trackPresence(lobby.id, player);
 
     document.getElementById('join-player-name').textContent = name;
@@ -517,7 +667,6 @@
     hideAllJoinSteps();
     document.getElementById('join-waiting-step').style.display = 'block';
 
-    // Small delay so the unlock trick above has finished before the join sound
     setTimeout(() => AwalSounds.play('join'), 150);
 
     window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
@@ -525,6 +674,24 @@
       const prevWordIndex = joinLobbyRow ? joinLobbyRow.current_word_index : null;
 
       joinLobbyRow = updatedLobby;
+
+      // Word Association is turn-based, so it gets its own branch entirely --
+      // it doesn't use current_word_index, current_hint, or the hangman
+      // guessing UI at all.
+      if(updatedLobby.game === 'word-association'){
+        if(updatedLobby.status === 'completed'){
+          waJoinStopTimer();
+          hideAllJoinSteps();
+          document.getElementById('join-done-step').style.display = 'block';
+          return;
+        }
+        if(updatedLobby.status !== 'playing') return;
+
+        hideAllJoinSteps();
+        document.getElementById('join-wa-play-step').style.display = 'block';
+        waJoinRender(updatedLobby);
+        return;
+      }
 
       showTeacherHint(updatedLobby.current_hint);
 
