@@ -2,11 +2,16 @@
 
 const WA_TOPICS = ["ocean","mountain","coffee","bicycle","music","holiday","garden","robot","library","weather","kitchen","airport","festival","forest","internet"];
 const WA_STUDENT_COLORS = ['#B6FF3C','#FFB020','#4DD8F0','#FF6FA8','#C837E8','#39FF88'];
+const WA_TEACHER_COLOR = '#FFD23F';
+const WA_TEACHER_ID = 'teacher';
 
 const waState = {
+  plan: 'free',
+  maxChainLength: 8,
+  mode: 'teacher-student',
   topic: '',
   turnTimeLimit: 0,
-  targetChainLength: 10
+  targetChainLength: 8
 };
 
 const waRoom = { students: [] };
@@ -15,6 +20,55 @@ let waLobby = null;
 let waLobbyChannel = null;
 let waPresenceChannel = null;
 let waDashboardTimer = null;
+
+/* ============ PLAN / MODE GATING (mirrors hgSetPlan / hgApplyPlanGating) ============ */
+
+function waSetPlan(plan){
+  waState.plan = plan;
+  waState.maxChainLength = plan === 'paid' ? 30 : 8;
+
+  document.getElementById('wa-plan-free')?.classList.toggle('active', plan === 'free');
+  document.getElementById('wa-plan-paid')?.classList.toggle('active', plan === 'paid');
+
+  const slider = document.getElementById('wa-chain-count');
+  if(slider){
+    slider.max = waState.maxChainLength;
+    if(parseInt(slider.value, 10) > waState.maxChainLength) slider.value = waState.maxChainLength;
+    waUpdateChainLength(slider.value);
+  }
+
+  waApplyPlanGating();
+}
+
+function waApplyPlanGating(){
+  const isPaid = waState.plan === 'paid';
+  const studentCard = document.getElementById('wa-mode-student');
+  studentCard?.classList.toggle('locked', !isPaid);
+
+  const lockNote = document.getElementById('wa-mode-lock');
+  if(lockNote) lockNote.style.display = isPaid ? 'none' : 'block';
+
+  if(!isPaid && waState.mode === 'student-student') waSetMode('teacher-student');
+}
+
+function waSetMode(mode){
+  if(mode === 'student-student' && waState.plan !== 'paid'){
+    const err = document.getElementById('wa-start-error');
+    if(err){
+      err.textContent = '👥 Student vs Student is a paid feature. Switch the demo account toggle to "Paid" to try it.';
+      err.style.display = 'block';
+    }
+    return;
+  }
+
+  const err = document.getElementById('wa-start-error');
+  if(err) err.style.display = 'none';
+
+  waState.mode = mode;
+
+  document.getElementById('wa-mode-teacher')?.classList.toggle('active', mode === 'teacher-student');
+  document.getElementById('wa-mode-student')?.classList.toggle('active', mode === 'student-student');
+}
 
 function waRandomTopic(){
   const t = WA_TOPICS[Math.floor(Math.random() * WA_TOPICS.length)];
@@ -30,6 +84,29 @@ function waUpdateChainLength(v){
 function waUpdateTimeLimit(v){
   waState.turnTimeLimit = parseInt(v, 10) || 0;
 }
+
+/* ============ PARTICIPANTS: teacher + joined students, mode-aware ============ */
+
+function waGetParticipants(){
+  if(waState.mode === 'teacher-student'){
+    return [{ id: WA_TEACHER_ID, name: 'Teacher (You)', color: WA_TEACHER_COLOR, isTeacher: true }, ...waRoom.students];
+  }
+  return waRoom.students;
+}
+
+// Teacher-vs-student: teacher plays every other turn, alternating with each
+// student in sequence (teacher, s1, teacher, s2, teacher, s3, ...).
+// Student-vs-student: plain round robin through the joined students.
+function waBuildOrder(){
+  if(waState.mode === 'teacher-student'){
+    const seq = [];
+    waRoom.students.forEach(s => { seq.push(WA_TEACHER_ID); seq.push(s.id); });
+    return seq.length ? seq : [WA_TEACHER_ID];
+  }
+  return waRoom.students.map(s => s.id);
+}
+
+/* ============ ROOM CREATION ============ */
 
 async function waCreateRoom(){
   const errEl = document.getElementById('wa-start-error');
@@ -128,6 +205,12 @@ function waCopyRoomLink(){
   }).catch(() => {});
 }
 
+function waMinStudentsNeeded(){
+  // Teacher vs Student needs just 1 student (the teacher is the 2nd player).
+  // Student vs Student needs 2, since the teacher isn't in the rotation.
+  return waState.mode === 'teacher-student' ? 1 : 2;
+}
+
 function waRenderRoster(){
   const wrap = document.getElementById('wa-roster');
   if(!wrap) return;
@@ -152,27 +235,35 @@ function waRenderRoster(){
   wrap.innerHTML = html;
 
   const beginBtn = document.getElementById('wa-begin-btn');
+  const minNeeded = waMinStudentsNeeded();
+
   if(beginBtn){
-    beginBtn.disabled = count < 2;
-    beginBtn.textContent = count < 2
-      ? '▶ Need at least 2 players (' + count + ' joined)'
-      : '▶ Begin round (' + count + ' players joined)';
+    beginBtn.disabled = count < minNeeded;
+    beginBtn.textContent = count < minNeeded
+      ? '▶ Need at least ' + minNeeded + ' student' + (minNeeded === 1 ? '' : 's') + ' (' + count + ' joined)'
+      : '▶ Begin round (' + count + ' player' + (count === 1 ? '' : 's') + ' joined)';
   }
 }
 
+/* ============ ROUND START ============ */
+
 async function waBeginRound(){
-  if(waRoom.students.length < 2) return;
+  if(waRoom.students.length < waMinStudentsNeeded()) return;
 
   document.getElementById('wa-room').style.display = 'none';
   document.getElementById('wa-dashboard').style.display = 'block';
 
+  const order = waBuildOrder();
+  const participants = waGetParticipants();
+
   const initialState = {
+    mode: waState.mode,
     topic: waState.topic,
-    order: waRoom.students.map(s => s.id),
+    order,
     turnIndex: 0,
     chain: [],
     usedWords: [waState.topic],
-    scores: Object.fromEntries(waRoom.students.map(s => [s.id, 0])),
+    scores: Object.fromEntries(participants.map(p => [p.id, 0])),
     targetChainLength: waState.targetChainLength,
     turnTimeLimit: waState.turnTimeLimit,
     ended: false
@@ -187,6 +278,8 @@ async function waBeginRound(){
   waRenderDashboard(waLobby);
 }
 
+/* ============ DASHBOARD RENDER ============ */
+
 function waStopDashboardTimer(){
   if(waDashboardTimer){ clearInterval(waDashboardTimer); waDashboardTimer = null; }
 }
@@ -199,10 +292,10 @@ function waFormatTime(seconds){
 
 function waRenderDashboard(lobby){
   const state = lobby.game_state || {};
-  const students = waRoom.students;
+  const participants = waGetParticipants();
   const order = state.order || [];
   const currentId = order[state.turnIndex];
-  const currentPlayer = students.find(s => s.id === currentId);
+  const currentPlayer = participants.find(p => p.id === currentId);
   const lastWord = state.chain && state.chain.length
     ? state.chain[state.chain.length - 1].word
     : state.topic;
@@ -218,10 +311,23 @@ function waRenderDashboard(lobby){
     turnBanner.style.color = currentPlayer ? currentPlayer.color : '';
   }
 
+  // Teacher's own turn is played right here on the dashboard.
+  const teacherInputWrap = document.getElementById('wa-teacher-input-wrap');
+  if(teacherInputWrap){
+    const isTeacherTurn = !state.ended && currentId === WA_TEACHER_ID;
+    teacherInputWrap.style.display = isTeacherTurn ? 'block' : 'none';
+    if(isTeacherTurn){
+      const input = document.getElementById('wa-teacher-word-input');
+      if(input && document.activeElement !== input) input.value = '';
+      const errEl = document.getElementById('wa-teacher-error');
+      if(errEl) errEl.style.display = 'none';
+    }
+  }
+
   const chainWrap = document.getElementById('wa-chain-list');
   if(chainWrap){
     chainWrap.innerHTML = (state.chain || []).slice().reverse().map(link => {
-      const player = students.find(s => s.id === link.playerId);
+      const player = participants.find(p => p.id === link.playerId);
       const color = player ? player.color : 'var(--ink-soft)';
       const label = link.skipped ? '<em>(skipped)</em>' : link.word;
       return '<div class="wa-chain-item"><span class="wa-chain-dot" style="background:' + color + ';"></span>' +
@@ -232,13 +338,13 @@ function waRenderDashboard(lobby){
 
   const scoreWrap = document.getElementById('wa-scoreboard');
   if(scoreWrap){
-    const rows = students
-      .map(s => ({ ...s, score: (state.scores && state.scores[s.id]) || 0 }))
+    const rows = participants
+      .map(p => ({ ...p, score: (state.scores && state.scores[p.id]) || 0 }))
       .sort((a, b) => b.score - a.score);
 
-    scoreWrap.innerHTML = rows.map(s =>
-      '<div class="wa-score-row"><span class="wa-score-dot" style="background:' + s.color + ';"></span>' +
-      '<span class="wa-score-name">' + s.name + '</span><span class="wa-score-num">' + s.score + '</span></div>'
+    scoreWrap.innerHTML = rows.map(p =>
+      '<div class="wa-score-row"><span class="wa-score-dot" style="background:' + p.color + ';"></span>' +
+      '<span class="wa-score-name">' + p.name + '</span><span class="wa-score-num">' + p.score + '</span></div>'
     ).join('');
   }
 
@@ -292,6 +398,58 @@ function waStartDashboardTimer(lobby){
   waDashboardTimer = setInterval(tick, 250);
 }
 
+/* ============ TEACHER SUBMITTING THEIR OWN TURN ============ */
+
+async function waSubmitTeacherWord(){
+  const input = document.getElementById('wa-teacher-word-input');
+  const errEl = document.getElementById('wa-teacher-error');
+  const btn = document.getElementById('wa-teacher-submit-btn');
+  const word = input ? input.value.trim().toLowerCase() : '';
+
+  if(errEl) errEl.style.display = 'none';
+
+  if(!word || !/^[a-z][a-z\s-]*$/.test(word)){
+    if(errEl){ errEl.textContent = 'Enter a single word (letters only).'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  const state = waLobby.game_state || {};
+
+  if((state.usedWords || []).includes(word)){
+    if(errEl){ errEl.textContent = 'That word has already been used — try another.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if(btn) btn.disabled = true;
+
+  const updated = await window.LobbySupabase.updateGameState(waLobby.id, (s) => {
+    if(s.ended) return s;
+    const order = s.order || [];
+    if(order[s.turnIndex] !== WA_TEACHER_ID) return s;
+
+    const newChain = [...(s.chain || []), { playerId: WA_TEACHER_ID, playerName: 'Teacher', word, ts: Date.now() }];
+
+    return {
+      ...s,
+      chain: newChain,
+      usedWords: [...(s.usedWords || []), word],
+      scores: { ...(s.scores || {}), [WA_TEACHER_ID]: ((s.scores && s.scores[WA_TEACHER_ID]) || 0) + 1 },
+      turnIndex: (s.turnIndex + 1) % order.length,
+      ended: newChain.length >= s.targetChainLength
+    };
+  });
+
+  if(updated){
+    waLobby = updated;
+    AwalSounds.play('correctLetter');
+    waRenderDashboard(updated);
+  } else if(btn){
+    btn.disabled = false;
+  }
+}
+
+/* ============ SKIP / END ============ */
+
 async function waSkipTurn(auto){
   if(!waLobby) return;
   const state = waLobby.game_state || {};
@@ -329,8 +487,9 @@ async function waEndRound(){
   document.getElementById('wa-summary').style.display = 'block';
 
   const state = waLobby.game_state || {};
-  const rows = waRoom.students
-    .map(s => ({ ...s, score: (state.scores && state.scores[s.id]) || 0 }))
+  const participants = waGetParticipants();
+  const rows = participants
+    .map(p => ({ ...p, score: (state.scores && state.scores[p.id]) || 0 }))
     .sort((a, b) => b.score - a.score);
 
   const winner = rows[0];
@@ -339,9 +498,9 @@ async function waEndRound(){
     ? '<strong>' + winner.name + '</strong> kept the chain going the longest, with <strong>' + winner.score + '</strong> word' + (winner.score === 1 ? '' : 's') + '.'
     : 'Round complete!';
 
-  document.getElementById('wa-summary-board').innerHTML = rows.map((s, i) =>
-    '<div class="wa-score-row"><span class="wa-score-dot" style="background:' + s.color + ';"></span>' +
-    '<span class="wa-score-name">' + (i + 1) + '. ' + s.name + '</span><span class="wa-score-num">' + s.score + '</span></div>'
+  document.getElementById('wa-summary-board').innerHTML = rows.map((p, i) =>
+    '<div class="wa-score-row"><span class="wa-score-dot" style="background:' + p.color + ';"></span>' +
+    '<span class="wa-score-name">' + (i + 1) + '. ' + p.name + '</span><span class="wa-score-num">' + p.score + '</span></div>'
   ).join('');
 
   if(waLobbyChannel){ window.LobbySupabase.unsubscribe(waLobbyChannel); waLobbyChannel = null; }
