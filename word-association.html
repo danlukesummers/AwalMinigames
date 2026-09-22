@@ -47,7 +47,15 @@
         <div id="wa-setup" class="wa-panel">
           <div class="wa-setup-head">
             <h2 style="font-size:24px; margin-bottom:6px;">Set up your Word Association game</h2>
-            <p style="color:var(--ink-soft); font-size:14.5px;">Pick a starting word and let the chain grow.</p>
+            <p style="color:var(--ink-soft); font-size:14.5px;">Pick a starting word, a mode, and let the chain grow.</p>
+          </div>
+
+          <div class="wa-plan-row">
+            <span style="font-weight:700; font-size:14px;">Demo account:</span>
+            <div class="toggle">
+              <button id="wa-plan-free" class="active" onclick="waSetPlan('free')">Free (max 8 words)</button>
+              <button id="wa-plan-paid" onclick="waSetPlan('paid')">Paid (up to 30 words)</button>
+            </div>
           </div>
 
           <div class="field" style="max-width:440px;">
@@ -72,14 +80,28 @@
           </div>
 
           <div class="field" style="max-width:320px;">
-            <label>Chain length (<span id="wa-chain-label">10</span> words)</label>
-            <input type="range" id="wa-chain-count" min="5" max="20" value="10" oninput="waUpdateChainLength(this.value)" style="width:100%;">
+            <label>Chain length (<span id="wa-chain-label">8</span> words)</label>
+            <input type="range" id="wa-chain-count" min="4" max="8" value="8" oninput="waUpdateChainLength(this.value)" style="width:100%;">
+          </div>
+
+          <div class="wa-mode-grid">
+            <div class="wa-mode-card active" id="wa-mode-teacher" onclick="waSetMode('teacher-student')">
+              <div class="wa-mode-num">1</div>
+              <h3 style="font-size:16px; margin-bottom:6px;">Teacher vs Student</h3>
+              <p style="color:var(--ink-soft); font-size:13.5px;">You take a turn, then each student takes theirs — one round-robin chain.</p>
+            </div>
+            <div class="wa-mode-card locked" id="wa-mode-student" onclick="waSetMode('student-student')">
+              <div class="wa-mode-num">2</div>
+              <h3 style="font-size:16px; margin-bottom:6px;">Student vs Student <span class="wa-paid-pill">PAID</span></h3>
+              <p style="color:var(--ink-soft); font-size:13.5px;">Students play head-to-head while you referee from the dashboard.</p>
+              <p class="wa-mode-lock" id="wa-mode-lock" style="display:block;">🔒 Upgrade to Paid to unlock this</p>
+            </div>
           </div>
 
           <button class="btn btn-primary btn-block" style="margin-top:28px;" onclick="waCreateRoom()">🔗 Create classroom room</button>
           <p id="wa-start-error" style="color:var(--wa-hot); font-size:13.5px; margin-top:10px; text-align:center; display:none;"></p>
         </div>
-
+        
         <!-- ROOM SCREEN -->
         <div id="wa-room" class="wa-panel" style="display:none;">
           <div style="text-align:center; margin-bottom:24px;">
