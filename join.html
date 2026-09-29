@@ -111,11 +111,15 @@
 
       <div id="wa-join-input-wrap" style="display:none; margin-bottom:14px;">
         <div style="display:flex; gap:8px;">
-          <input type="text" id="wa-join-word-input" placeholder="Type a related word…" autocomplete="off"
+          <input type="text" id="wa-join-word-input" placeholder="Type a related word…" autocomplete="off" onkeydown="if(event.key==='Enter'){waJoinSubmit();}"
             style="flex:1; padding:12px 14px; border-radius:10px; border:1.5px solid var(--line); font-family:'Space Grotesk'; font-size:15px;">
           <button class="btn btn-primary" onclick="waJoinSubmit()" id="wa-join-submit-btn">Send</button>
         </div>
         <p id="wa-join-error" style="color:var(--coral-deep); font-size:12.5px; margin-top:8px; display:none;"></p>
+      </div>
+
+      <div id="wa-join-verbal-wrap" style="display:none; margin-bottom:14px; text-align:center;">
+        <button class="btn btn-primary" onclick="waJoinVerbalNext()" id="wa-join-verbal-btn">✓ I said it — Next</button>
       </div>
 
       <div id="wa-join-chain" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;"></div>
@@ -517,7 +521,13 @@
     const order = state.order || [];
     const chain = state.chain || [];
     const isMyTurn = order[state.turnIndex] === joinPlayer.id;
-    const lastWord = chain.length ? chain[chain.length - 1].word : state.topic;
+    const isVerbal = state.answerStyle === 'verbal';
+    let lastWord = state.topic;
+    if(!isVerbal){
+      for(let i = chain.length - 1; i >= 0; i--){
+        if(chain[i].word){ lastWord = chain[i].word; break; }
+      }
+    }
 
     document.getElementById('wa-join-count').textContent = chain.length;
     document.getElementById('wa-join-total').textContent = state.targetChainLength || '–';
@@ -526,26 +536,36 @@
     const msgEl = document.getElementById('wa-join-turn-msg');
     const inputWrap = document.getElementById('wa-join-input-wrap');
     const errEl = document.getElementById('wa-join-error');
+    const verbalWrap = document.getElementById('wa-join-verbal-wrap');
 
     if(errEl) errEl.style.display = 'none';
 
     if(state.ended){
+      if(verbalWrap) verbalWrap.style.display = 'none';
       waJoinStopTimer();
       if(msgEl) msgEl.textContent = "🏁 The chain is complete — check your teacher's screen!";
       if(inputWrap) inputWrap.style.display = 'none';
     } else if(isMyTurn){
-      if(msgEl) msgEl.textContent = "🔥 It's your turn!";
-      if(inputWrap){
-        inputWrap.style.display = 'block';
-        const input = document.getElementById('wa-join-word-input');
-        if(input){ input.value = ''; input.disabled = false; setTimeout(() => input.focus(), 50); }
-        const btn = document.getElementById('wa-join-submit-btn');
-        if(btn) btn.disabled = false;
+      if(isVerbal){
+        if(msgEl) msgEl.textContent = "🔥 Your turn — say your word out loud, then press Next!";
+        if(inputWrap) inputWrap.style.display = 'none';
+        if(verbalWrap){ verbalWrap.style.display = 'block'; const vb = document.getElementById('wa-join-verbal-btn'); if(vb) vb.disabled = false; }
+      } else {
+        if(msgEl) msgEl.textContent = "🔥 It's your turn!";
+        if(verbalWrap) verbalWrap.style.display = 'none';
+        if(inputWrap){
+          inputWrap.style.display = 'block';
+          const input = document.getElementById('wa-join-word-input');
+          if(input){ input.value = ''; input.disabled = false; setTimeout(() => input.focus(), 50); }
+          const btn = document.getElementById('wa-join-submit-btn');
+          if(btn) btn.disabled = false;
+        }
       }
       waJoinRenderTimer(lobby);
     } else {
       if(msgEl) msgEl.textContent = 'Waiting for the next player…';
       if(inputWrap) inputWrap.style.display = 'none';
+      if(verbalWrap) verbalWrap.style.display = 'none';
       waJoinRenderTimer(lobby);
     }
 
@@ -553,7 +573,7 @@
     if(chainWrap){
       chainWrap.innerHTML = chain.slice().reverse().slice(0, 8).map(link => {
         const mine = link.playerId === joinPlayer.id;
-        const label = link.skipped ? '(skipped)' : link.word;
+        const label = link.skipped ? '(skipped)' : (link.spoken ? '🗣 said aloud' : link.word);
         return '<div style="font-size:12.5px; color:var(--ink-soft);"><strong style="color:' + (mine ? 'var(--coral-deep)' : 'var(--ink)') + ';">' + (mine ? 'You' : '') + '</strong> ' + label + '</div>';
       }).join('');
     }
@@ -592,6 +612,38 @@
         ...s,
         chain: newChain,
         usedWords: [...(s.usedWords || []), word],
+        scores: { ...(s.scores || {}), [joinPlayer.id]: ((s.scores && s.scores[joinPlayer.id]) || 0) + 1 },
+        turnIndex: (s.turnIndex + 1) % order.length,
+        ended: newChain.length >= s.targetChainLength
+      };
+    });
+
+    if(updated){
+      joinLobbyRow = updated;
+      AwalSounds.play('correctLetter');
+      waJoinRender(updated);
+    } else if(btn){
+      btn.disabled = false;
+    }
+  }
+
+  async function waJoinVerbalNext(){
+    const btn = document.getElementById('wa-join-verbal-btn');
+    if(btn) btn.disabled = true;
+
+    const expectedTurn = (joinLobbyRow.game_state || {}).turnIndex;
+
+    const updated = await window.LobbySupabase.updateGameState(joinLobbyRow.id, (s) => {
+      if(s.ended) return s;
+      if(s.turnIndex !== expectedTurn) return s; // teacher already advanced
+      const order = s.order || [];
+      if(order[s.turnIndex] !== joinPlayer.id) return s;
+
+      const newChain = [...(s.chain || []), { playerId: joinPlayer.id, playerName: joinPlayer.name, word: null, spoken: true, ts: Date.now() }];
+
+      return {
+        ...s,
+        chain: newChain,
         scores: { ...(s.scores || {}), [joinPlayer.id]: ((s.scores && s.scores[joinPlayer.id]) || 0) + 1 },
         turnIndex: (s.turnIndex + 1) % order.length,
         ended: newChain.length >= s.targetChainLength
