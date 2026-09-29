@@ -79,6 +79,15 @@
             </select>
           </div>
 
+          <div class="field" style="max-width:440px;">
+            <label>How will players answer?</label>
+            <div class="toggle">
+              <button id="wa-style-written" class="active" type="button" onclick="waSetAnswerStyle('written')">⌨️ Written (type it)</button>
+              <button id="wa-style-verbal" type="button" onclick="waSetAnswerStyle('verbal')">🗣 Verbal (say it aloud)</button>
+            </div>
+            <p style="color:var(--ink-soft); font-size:12.5px; margin-top:8px;">Verbal: each player says their word out loud, then presses Next so the next player can go.</p>
+          </div>
+
           <div class="field" style="max-width:320px;">
             <label>Chain length (<span id="wa-chain-label">8</span> words)</label>
             <input type="range" id="wa-chain-count" min="4" max="8" value="8" oninput="waUpdateChainLength(this.value)" style="width:100%;">
@@ -137,14 +146,19 @@
           </div>
 
             <div class="wa-current-card">
-            <div class="wa-current-label">Current word</div>
+            <div class="wa-current-label" id="wa-current-label">Current word</div>
             <div class="wa-current-word" id="wa-current-word">–</div>
             <div class="wa-turn-banner" id="wa-turn-banner">–</div>
 
             <!-- Shown only when it's the TEACHER's turn (Teacher vs Student mode) -->
+            <!-- Verbal mode: teacher presses Next when whoever's turn it is has spoken -->
+            <div id="wa-verbal-wrap" style="display:none; margin-top:16px;">
+              <button class="btn btn-primary" onclick="waVerbalNext()" id="wa-verbal-next-btn">✓ Next</button>
+            </div>
+
             <div id="wa-teacher-input-wrap" style="display:none; margin-top:16px; max-width:360px; margin-left:auto; margin-right:auto;">
               <div style="display:flex; gap:8px;">
-                <input type="text" id="wa-teacher-word-input" placeholder="Type your word…" autocomplete="off"
+                <input type="text" id="wa-teacher-word-input" placeholder="Type your word…" autocomplete="off" onkeydown="if(event.key==='Enter'){waSubmitTeacherWord();}"
                   style="flex:1; padding:11px 14px; border-radius:10px; border:1.5px solid var(--line); font-family:'Space Grotesk'; font-size:14.5px; background:white; color:#1E1B2E;">
                 <button class="btn btn-primary btn-sm" onclick="waSubmitTeacherWord()" id="wa-teacher-submit-btn">Send</button>
               </div>
