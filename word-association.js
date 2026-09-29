@@ -11,7 +11,8 @@ const waState = {
   mode: 'teacher-student',
   topic: '',
   turnTimeLimit: 0,
-  targetChainLength: 8
+  targetChainLength: 8,
+  answerStyle: 'written' // 'written' (everyone types) or 'verbal' (say it aloud, press Next)
 };
 
 const waRoom = { students: [] };
@@ -20,6 +21,7 @@ let waLobby = null;
 let waLobbyChannel = null;
 let waPresenceChannel = null;
 let waDashboardTimer = null;
+let waLastTurnKey = null;
 
 /* ============ PLAN / MODE GATING (mirrors hgSetPlan / hgApplyPlanGating) ============ */
 
@@ -68,6 +70,21 @@ function waSetMode(mode){
 
   document.getElementById('wa-mode-teacher')?.classList.toggle('active', mode === 'teacher-student');
   document.getElementById('wa-mode-student')?.classList.toggle('active', mode === 'student-student');
+}
+
+function waSetAnswerStyle(style){
+  waState.answerStyle = style === 'verbal' ? 'verbal' : 'written';
+  document.getElementById('wa-style-written')?.classList.toggle('active', waState.answerStyle === 'written');
+  document.getElementById('wa-style-verbal')?.classList.toggle('active', waState.answerStyle === 'verbal');
+}
+
+// Last real word in the chain (skips over skipped / spoken turns), else the topic.
+function waLastWord(state){
+  const chain = state.chain || [];
+  for(let i = chain.length - 1; i >= 0; i--){
+    if(chain[i].word) return chain[i].word;
+  }
+  return state.topic;
 }
 
 function waRandomTopic(){
@@ -266,6 +283,7 @@ async function waBeginRound(){
     scores: Object.fromEntries(participants.map(p => [p.id, 0])),
     targetChainLength: waState.targetChainLength,
     turnTimeLimit: waState.turnTimeLimit,
+    answerStyle: waState.answerStyle,
     ended: false
   };
 
@@ -296,14 +314,15 @@ function waRenderDashboard(lobby){
   const order = state.order || [];
   const currentId = order[state.turnIndex];
   const currentPlayer = participants.find(p => p.id === currentId);
-  const lastWord = state.chain && state.chain.length
-    ? state.chain[state.chain.length - 1].word
-    : state.topic;
+  const isVerbal = state.answerStyle === 'verbal';
+  const lastWord = isVerbal ? state.topic : waLastWord(state);
 
   document.getElementById('wa-dash-progress').textContent =
     (state.chain ? state.chain.length : 0) + ' / ' + (state.targetChainLength || 0) + ' words';
 
   document.getElementById('wa-current-word').textContent = (lastWord || '–').toUpperCase();
+  const wordLabel = document.getElementById('wa-current-label');
+  if(wordLabel) wordLabel.textContent = isVerbal ? 'Starting word (say your answers aloud)' : 'Current word';
 
   const turnBanner = document.getElementById('wa-turn-banner');
   if(turnBanner){
@@ -311,16 +330,39 @@ function waRenderDashboard(lobby){
     turnBanner.style.color = currentPlayer ? currentPlayer.color : '';
   }
 
-  // Teacher's own turn is played right here on the dashboard.
+  // Teacher's own turn (written mode) is played right here on the dashboard.
+  // Verbal mode has no text box -- the teacher just presses Next.
   const teacherInputWrap = document.getElementById('wa-teacher-input-wrap');
+  const verbalWrap = document.getElementById('wa-verbal-wrap');
+  const turnKey = (state.chain ? state.chain.length : 0) + ':' + state.turnIndex;
+  const isTeacherTurn = !state.ended && currentId === WA_TEACHER_ID;
+
   if(teacherInputWrap){
-    const isTeacherTurn = !state.ended && currentId === WA_TEACHER_ID;
-    teacherInputWrap.style.display = isTeacherTurn ? 'block' : 'none';
-    if(isTeacherTurn){
+    const showInput = isTeacherTurn && !isVerbal;
+    teacherInputWrap.style.display = showInput ? 'block' : 'none';
+    if(showInput){
       const input = document.getElementById('wa-teacher-word-input');
-      if(input && document.activeElement !== input) input.value = '';
-      const errEl = document.getElementById('wa-teacher-error');
-      if(errEl) errEl.style.display = 'none';
+      const btn = document.getElementById('wa-teacher-submit-btn');
+      // FIX: new turn -> always clear the box and re-enable Send.
+      if(turnKey !== waLastTurnKey){
+        if(input) input.value = '';
+        if(btn) btn.disabled = false;
+        const errEl = document.getElementById('wa-teacher-error');
+        if(errEl) errEl.style.display = 'none';
+        if(input) setTimeout(() => input.focus(), 50);
+      }
+    }
+  }
+  waLastTurnKey = turnKey;
+
+  if(verbalWrap){
+    verbalWrap.style.display = (isVerbal && !state.ended) ? 'block' : 'none';
+    const nextVerbalBtn = document.getElementById('wa-verbal-next-btn');
+    if(nextVerbalBtn){
+      nextVerbalBtn.disabled = false;
+      nextVerbalBtn.textContent = isTeacherTurn
+        ? "✓ I've said my word — Next"
+        : (currentPlayer ? "✓ " + currentPlayer.name + " said it — Next" : '✓ Next');
     }
   }
 
@@ -329,7 +371,7 @@ function waRenderDashboard(lobby){
     chainWrap.innerHTML = (state.chain || []).slice().reverse().map(link => {
       const player = participants.find(p => p.id === link.playerId);
       const color = player ? player.color : 'var(--ink-soft)';
-      const label = link.skipped ? '<em>(skipped)</em>' : link.word;
+      const label = link.skipped ? '<em>(skipped)</em>' : (link.spoken ? '<em>🗣 said aloud</em>' : link.word);
       return '<div class="wa-chain-item"><span class="wa-chain-dot" style="background:' + color + ';"></span>' +
         '<span class="wa-chain-name">' + (player ? player.name : '?') + '</span>' +
         '<span class="wa-chain-word">' + label + '</span></div>';
@@ -439,6 +481,43 @@ async function waSubmitTeacherWord(){
     };
   });
 
+  // FIX: the old code only re-enabled Send when the save FAILED, so after one
+  // successful word the button stayed disabled for every later teacher turn.
+  if(updated){
+    waLobby = updated;
+    AwalSounds.play('correctLetter');
+    waRenderDashboard(updated);
+  }
+  if(btn) btn.disabled = false;
+}
+
+/* ============ VERBAL MODE: press Next when the current player has spoken ============ */
+
+async function waVerbalNext(){
+  if(!waLobby) return;
+  const state = waLobby.game_state || {};
+  if(state.ended) return;
+
+  const btn = document.getElementById('wa-verbal-next-btn');
+  if(btn) btn.disabled = true;
+
+  const expectedTurn = state.turnIndex;
+
+  const updated = await window.LobbySupabase.updateGameState(waLobby.id, (s) => {
+    if(s.ended) return s;
+    if(s.turnIndex !== expectedTurn) return s; // someone already advanced this turn
+    const order = s.order || [];
+    const currentId = order[s.turnIndex];
+    const newChain = [...(s.chain || []), { playerId: currentId, word: null, spoken: true, ts: Date.now() }];
+    return {
+      ...s,
+      chain: newChain,
+      scores: { ...(s.scores || {}), [currentId]: ((s.scores && s.scores[currentId]) || 0) + 1 },
+      turnIndex: (s.turnIndex + 1) % order.length,
+      ended: newChain.length >= s.targetChainLength
+    };
+  });
+
   if(updated){
     waLobby = updated;
     AwalSounds.play('correctLetter');
@@ -526,5 +605,6 @@ function waResetToSetup(){
   if(waPresenceChannel && window.LobbySupabase){ window.LobbySupabase.unsubscribe(waPresenceChannel); waPresenceChannel = null; }
 
   waLobby = null;
+  waLastTurnKey = null;
   document.getElementById('wa-setup').style.display = 'block';
 }
