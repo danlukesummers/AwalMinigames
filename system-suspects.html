@@ -27,6 +27,10 @@
   .gw-turn{font-size:16px; font-weight:800; color:#39FF14; letter-spacing:0.04em;}
   .gw-timer{font-size:14px; font-weight:700; color:rgba(228,255,251,0.7);}
   .gw-timer.hot{color:#FF3B6B;}
+  .gw-cat{width:100%; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; margin-bottom:10px;}
+  .gw-cat-label{font-family:'Space Mono',monospace; font-size:10px; font-weight:800; letter-spacing:0.12em; color:#39FF14; min-width:104px; text-align:right; padding-right:6px;}
+  .gw-qdeck-buttons{flex-direction:column; align-items:stretch;}
+  .gw-asked-chip{font-family:'Space Mono',monospace; font-size:12px; border:1px solid #39FF14; color:#39FF14; border-radius:6px; padding:7px 12px;}
   .gw-view-only .gw-elim-btn{display:none;}
   .gw-view-only .gw-card:hover:not(.gw-out){transform:none;}
 </style>
@@ -69,12 +73,12 @@
       <p class="gw-hint">Students take turns asking a question or eliminating a suspect. Everyone works together to isolate the target.</p>
 
       <div class="gw-field">
-        <label>TRACE ATTEMPTS (questions the class can ask)</label>
+        <label>QUESTIONS THE CLASS CAN ASK</label>
         <select id="gw-trace-limit" onchange="gwUpdateTraceLimit(this.value)">
-          <option value="3">3 questions</option>
-          <option value="4" selected>4 questions</option>
+          <option value="0" selected>Unlimited questions</option>
           <option value="5">5 questions</option>
-          <option value="6">6 questions (all traits)</option>
+          <option value="8">8 questions</option>
+          <option value="12">12 questions</option>
         </select>
       </div>
 
@@ -121,9 +125,9 @@
 
       <div class="gw-layout">
         <div class="gw-side-box">
-          <div class="gw-side-title">ELIMINATION<br>PROTOCOL</div>
+          <div class="gw-side-title">QUESTIONS<br>ASKED</div>
           <ul class="gw-protocol-list" id="gw-protocol-list"></ul>
-          <div class="gw-traces-left">TRACE ATTEMPTS<b id="gw-traces">4</b></div>
+          <div class="gw-traces-left">QUESTIONS LEFT<b id="gw-traces">∞</b></div>
         </div>
 
         <div>
@@ -168,6 +172,24 @@
 <script src="sounds.js"></script>
 <script type="module" src="lobby.js"></script>
 <script src="main.js"></script>
+<script>
+  // Safety net: if main.js didn't define the games-dropdown hover handlers on this page,
+  // define minimal versions so hovering the logo never throws. Does nothing if main.js already did.
+  (function(){
+    var t = null;
+    var drop = function(){ return document.getElementById('games-drop'); };
+    if(typeof window.showGamesDrop !== 'function') window.showGamesDrop = function(){
+      clearTimeout(t);
+      var d = drop();
+      if(d && d.querySelector('.game-drop-card')) d.classList.add('open');
+    };
+    if(typeof window.cancelHideGamesDrop !== 'function') window.cancelHideGamesDrop = function(){ clearTimeout(t); };
+    if(typeof window.scheduleHideGamesDrop !== 'function') window.scheduleHideGamesDrop = function(){
+      clearTimeout(t);
+      t = setTimeout(function(){ var d = drop(); if(d) d.classList.remove('open'); }, 250);
+    };
+  })();
+</script>
 <script src="system-suspects-core.js"></script>
 <script src="system-suspects.js"></script>
 </body>
