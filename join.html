@@ -134,6 +134,7 @@
       <p id="gw-join-turn-msg" style="text-align:center; font-weight:700; font-size:14.5px; margin-bottom:10px;">–</p>
       <div class="gw-board-wrap">
         <div style="font-size:11px; letter-spacing:0.08em; color:#00F3FF; font-weight:700;">ASK A QUESTION: DOES YOUR SUSPECT HAVE…?</div>
+        <div class="gw-tabs" id="gw-join-tabs"></div>
         <div class="gw-qdeck-buttons" id="gw-join-deck" style="justify-content:flex-start;"></div>
         <div class="gw-mini-grid" id="gw-join-grid"></div>
         <div id="gw-join-result" style="display:none; margin-top:12px; text-align:center; font-weight:800; font-size:13px;"></div>
@@ -212,10 +213,13 @@
 
   /* System Suspects (student view) */
   #join-gw-play-step .gw-board-wrap{background:#050908; border-radius:14px; padding:12px; color:#E4FFFB; font-family:'Space Mono',monospace;}
-  #join-gw-play-step .gw-mini-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:12px;}
+  #join-gw-play-step .gw-mini-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px;}
+  #join-gw-play-step .gw-tabs{display:flex; gap:6px; overflow-x:auto; margin-top:8px; padding-bottom:4px;}
+  #join-gw-play-step .gw-tab{flex-shrink:0; background:transparent; border:1px solid rgba(0,243,255,0.35); color:#00F3FF; border-radius:6px; padding:6px 9px; font-family:'Space Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.06em; cursor:pointer;}
+  #join-gw-play-step .gw-tab.active{background:#00F3FF; color:#050908;}
   #join-gw-play-step .gw-mini-grid .gw-card{padding:5px; cursor:default;}
   #join-gw-play-step .gw-mini-grid .gw-card.gw-pick{cursor:pointer;}
-  #join-gw-play-step .gw-mini-grid .gw-code{font-size:8px; margin:3px 0 0; text-align:center;}
+  #join-gw-play-step .gw-mini-grid .gw-code{font-size:9px; margin:4px 0 0; text-align:center;}
   #join-gw-play-step .gw-qbtn{padding:8px 10px; font-size:11px;}
   #join-gw-play-step .gw-qdeck-buttons{margin-top:8px;}
 </style>
@@ -690,6 +694,9 @@
   let gwJoinSuspects = [];
   let gwJoinSeed = null;
   let gwJoinBusy = false;
+  let gwJoinCat = 'mood';
+
+  function gwJoinSetCat(id){ gwJoinCat = id; if(joinLobbyRow) gwJoinRender(joinLobbyRow); }
 
   function gwJoinGetSuspects(seed){
     if(gwJoinSeed !== seed || !gwJoinSuspects.length){
@@ -712,16 +719,19 @@
     const currentId = (gs.order || [])[gs.turnIndex];
     const myTurn = !gs.ended && currentId === joinPlayer.id;
 
-    document.getElementById('gw-join-traces').textContent = gs.tracesLeft;
+    document.getElementById('gw-join-traces').textContent = gs.traceLimit > 0 ? gs.tracesLeft : '∞ (unlimited)';
 
     const msg = document.getElementById('gw-join-turn-msg');
     if(gs.ended) msg.textContent = gs.result === 'win' ? '🎉 Target isolated — great teamwork!' : '💥 The target was purged. Better luck next case!';
     else if(myTurn) msg.textContent = "🔥 Your turn! Ask a question or eliminate a suspect.";
     else msg.textContent = 'Waiting for ' + gwJoinNameFor(currentId) + '…';
 
-    document.getElementById('gw-join-deck').innerHTML = GW_TRAITS.map(t => {
-      const disabled = !myTurn || asked.includes(t.key) || gs.tracesLeft <= 0;
-      return '<button class="gw-qbtn" ' + (disabled ? 'disabled ' : '') + 'onclick="gwJoinAsk(\'' + t.key + '\')">[' + t.label + ']</button>';
+    document.getElementById('gw-join-tabs').innerHTML = GW_CATEGORIES.map(c =>
+      '<button class="gw-tab' + (c.id === gwJoinCat ? ' active' : '') + '" onclick="gwJoinSetCat(\'' + c.id + '\')">' + c.label + '</button>'
+    ).join('');
+    document.getElementById('gw-join-deck').innerHTML = GW_QUESTIONS.filter(q => q.cat === gwJoinCat).map(q => {
+      const disabled = !myTurn || asked.includes(q.id) || gwOutOfQuestions(gs);
+      return '<button class="gw-qbtn" ' + (disabled ? 'disabled ' : '') + 'onclick="gwJoinAsk(\'' + q.id + '\')">[' + q.label + ']</button>';
     }).join('');
 
     document.getElementById('gw-join-grid').innerHTML = suspects.map((sp, i) => {
@@ -848,7 +858,10 @@
       // Word Association is turn-based, so it gets its own branch entirely --
       // it doesn't use current_word_index, current_hint, or the hangman
       // guessing UI at all.
-      if(updatedLobby.game === 'word-association'){
+      const gwMarked = updatedLobby.game === 'system-suspects' ||
+        (updatedLobby.game_state && updatedLobby.game_state.game === 'system-suspects');
+
+      if(!gwMarked && updatedLobby.game === 'word-association'){
         if(updatedLobby.status === 'completed'){
           waJoinStopTimer();
           hideAllJoinSteps();
@@ -864,7 +877,7 @@
       }
 
       // System Suspects: turn-based shared board (state lives in game_state).
-      if(updatedLobby.game === 'system-suspects'){
+      if(gwMarked){
         const gs = updatedLobby.game_state;
         if(!gs || gs.seed === undefined){
           if(updatedLobby.status === 'completed'){
