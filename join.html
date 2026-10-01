@@ -127,20 +127,43 @@
 
     <!-- STEP 3c: live play -- System Suspects (turn-based, shared board) -->
     <div id="join-gw-play-step" style="display:none; text-align:left;">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
-        <span class="mono" style="font-size:13px; color:var(--ink-soft);">Trace attempts: <strong id="gw-join-traces">–</strong></span>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+        <span class="mono" style="font-size:12.5px; color:var(--ink-soft);" id="gw-join-opp">–</span>
         <span id="gw-join-timer" class="mono" style="font-size:13px; color:var(--ink-soft); font-weight:700; display:none;">⏱ 0s</span>
       </div>
       <p id="gw-join-turn-msg" style="text-align:center; font-weight:700; font-size:14.5px; margin-bottom:10px;">–</p>
+
       <div class="gw-board-wrap">
-        <div style="font-size:11px; letter-spacing:0.08em; color:#00F3FF; font-weight:700;">ASK A QUESTION: DOES YOUR SUSPECT HAVE…?</div>
-        <div class="gw-tabs" id="gw-join-tabs"></div>
-        <div class="gw-qdeck-buttons" id="gw-join-deck" style="justify-content:flex-start;"></div>
+        <div class="gw-top-row">
+          <div>
+            <div class="gw-box-label">YOUR SECRET SUSPECT</div>
+            <div class="gw-secret" id="gw-join-secret">–</div>
+            <div class="gw-target-code" id="gw-join-secret-code" style="margin-top:6px;">&nbsp;</div>
+          </div>
+          <div>
+            <div class="gw-box-label">TARGET PROFILE</div>
+            <div class="gw-zone" id="gw-join-zone">DRAG YOUR FINAL SUSPECT HERE</div>
+            <div class="gw-target-code" id="gw-join-zone-code" style="margin-top:6px;">&nbsp;</div>
+          </div>
+        </div>
+
+        <div class="gw-btn-row">
+          <button class="btn btn-primary" id="gw-join-next-btn" onclick="gwJoinNextQuestion()" disabled>✓ Next question</button>
+          <button class="btn btn-dark" id="gw-join-end-btn" onclick="gwJoinEndCase()" disabled>END CASE</button>
+        </div>
+
+        <div id="gw-join-result" class="gw-result-banner" style="margin:12px 0 0; font-size:13px; padding:12px;"></div>
+
         <div class="gw-mini-grid" id="gw-join-grid"></div>
-        <div id="gw-join-result" style="display:none; margin-top:12px; text-align:center; font-weight:800; font-size:13px;"></div>
+
+        <details>
+          <summary>💡 QUESTION IDEAS</summary>
+          <div id="gw-join-ideas"></div>
+        </details>
+
         <div id="gw-join-last" style="margin-top:12px; font-size:11px; color:rgba(228,255,251,0.7);"></div>
       </div>
-      <p style="font-size:11.5px; color:var(--ink-soft); margin-top:10px; text-align:center;">On your turn: ask ONE question, or tap ONE suspect to eliminate. Careful: eliminating the target loses the round for the whole class!</p>
+      <p style="font-size:11.5px; color:var(--ink-soft); margin-top:10px; text-align:center;">Ask your questions out loud. Tap a profile to fade it. With one left on your turn, drag it onto the target profile and press End Case.</p>
     </div>
 
     <!-- STEP 4: this student is done with the current word, others still going (Hangman only) -->
@@ -213,15 +236,16 @@
 
   /* System Suspects (student view) */
   #join-gw-play-step .gw-board-wrap{background:#050908; border-radius:14px; padding:12px; color:#E4FFFB; font-family:'Space Mono',monospace;}
+  #join-gw-play-step .gw-top-row{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  #join-gw-play-step .gw-box-label{font-size:10px; font-weight:800; letter-spacing:0.08em; color:#00F3FF; text-align:center; margin-bottom:6px;}
   #join-gw-play-step .gw-mini-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px;}
-  #join-gw-play-step .gw-tabs{display:flex; gap:6px; overflow-x:auto; margin-top:8px; padding-bottom:4px;}
-  #join-gw-play-step .gw-tab{flex-shrink:0; background:transparent; border:1px solid rgba(0,243,255,0.35); color:#00F3FF; border-radius:6px; padding:6px 9px; font-family:'Space Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.06em; cursor:pointer;}
-  #join-gw-play-step .gw-tab.active{background:#00F3FF; color:#050908;}
-  #join-gw-play-step .gw-mini-grid .gw-card{padding:5px; cursor:default;}
-  #join-gw-play-step .gw-mini-grid .gw-card.gw-pick{cursor:pointer;}
+  #join-gw-play-step .gw-mini-grid .gw-card{padding:5px;}
   #join-gw-play-step .gw-mini-grid .gw-code{font-size:9px; margin:4px 0 0; text-align:center;}
-  #join-gw-play-step .gw-qbtn{padding:8px 10px; font-size:11px;}
-  #join-gw-play-step .gw-qdeck-buttons{margin-top:8px;}
+  #join-gw-play-step .gw-secret .gw-avatar-wrap{margin:0; border-radius:0; height:100%; aspect-ratio:auto; width:100%;}
+  #join-gw-play-step .gw-btn-row{display:flex; gap:8px; margin-top:10px;}
+  #join-gw-play-step .gw-btn-row .btn{flex:1; justify-content:center; padding:11px 10px; font-size:13px;}
+  #join-gw-play-step details{margin-top:12px; border:1px solid rgba(0,243,255,0.3); border-radius:8px; padding:10px 12px;}
+  #join-gw-play-step summary{cursor:pointer; font-size:11px; font-weight:800; letter-spacing:0.06em; color:#00F3FF;}
 </style>
 
 <script src="sounds.js"></script>
@@ -695,96 +719,174 @@
   let gwJoinSeed = null;
   let gwJoinBusy = false;
   let gwJoinCat = 'mood';
-
-  function gwJoinSetCat(id){ gwJoinCat = id; if(joinLobbyRow) gwJoinRender(joinLobbyRow); }
+  let gwJoinBoundSeed = null;
+  const gwJoinLocal = { faded: new Set(), placed: null };
 
   function gwJoinGetSuspects(seed){
     if(gwJoinSeed !== seed || !gwJoinSuspects.length){
       gwJoinSuspects = gwSuspectsFromSeed(seed);
       gwJoinSeed = seed;
+      // new board => fresh local notes
+      gwJoinLocal.faded = new Set();
+      gwJoinLocal.placed = null;
     }
     return gwJoinSuspects;
   }
 
-  function gwJoinNameFor(id){
-    const p = ((joinLobbyRow && joinLobbyRow.players) || []).find(x => x.id === id);
-    return p ? p.name : 'another player';
+  function gwJoinRemaining(suspects){
+    const left = [];
+    suspects.forEach((_, i) => { if(!gwJoinLocal.faded.has(i)) left.push(i); });
+    return left.length === 1 ? left[0] : -1;
+  }
+
+  function gwJoinInfo(gs){
+    const asker = (gs.order || [])[gs.turnIndex];
+    const iAmOut = (gs.out || []).includes(joinPlayer.id);
+    const myTurn = !gs.ended && !iAmOut && asker === joinPlayer.id;
+    return { asker, iAmOut, myTurn };
   }
 
   function gwJoinRender(lobby){
     const gs = lobby.game_state || {};
     const suspects = gwJoinGetSuspects(gs.seed);
-    const eliminated = gs.eliminated || [];
-    const asked = gs.askedTraits || [];
-    const currentId = (gs.order || [])[gs.turnIndex];
-    const myTurn = !gs.ended && currentId === joinPlayer.id;
+    const { asker, iAmOut, myTurn } = gwJoinInfo(gs);
+    const nameOf = (id) => (gs.names && gs.names[id]) || 'another player';
 
-    document.getElementById('gw-join-traces').textContent = gs.traceLimit > 0 ? gs.tracesLeft : '∞ (unlimited)';
+    if(!myTurn) gwJoinLocal.placed = null;
+    if(gwJoinLocal.placed !== null && gwJoinLocal.faded.has(gwJoinLocal.placed)) gwJoinLocal.placed = null;
 
+    // header + message
+    const opp = gwOpponentOf(gs, joinPlayer.id);
+    document.getElementById('gw-join-opp').textContent = opp && !iAmOut ? 'You ask: ' + nameOf(opp) : '';
     const msg = document.getElementById('gw-join-turn-msg');
-    if(gs.ended) msg.textContent = gs.result === 'win' ? '🎉 Target isolated — great teamwork!' : '💥 The target was purged. Better luck next case!';
-    else if(myTurn) msg.textContent = "🔥 Your turn! Ask a question or eliminate a suspect.";
-    else msg.textContent = 'Waiting for ' + gwJoinNameFor(currentId) + '…';
-
-    document.getElementById('gw-join-tabs').innerHTML = GW_CATEGORIES.map(c =>
-      '<button class="gw-tab' + (c.id === gwJoinCat ? ' active' : '') + '" onclick="gwJoinSetCat(\'' + c.id + '\')">' + c.label + '</button>'
-    ).join('');
-    document.getElementById('gw-join-deck').innerHTML = GW_QUESTIONS.filter(q => q.cat === gwJoinCat).map(q => {
-      const disabled = !myTurn || asked.includes(q.id) || gwOutOfQuestions(gs);
-      return '<button class="gw-qbtn" ' + (disabled ? 'disabled ' : '') + 'onclick="gwJoinAsk(\'' + q.id + '\')">[' + q.label + ']</button>';
-    }).join('');
-
-    document.getElementById('gw-join-grid').innerHTML = suspects.map((sp, i) => {
-      const out = eliminated.includes(i);
-      const pick = myTurn && !out;
-      return '<div class="gw-card' + (out ? ' gw-out' : '') + (pick ? ' gw-pick' : '') + '"' +
-        (pick ? ' onclick="gwJoinEliminate(' + i + ')"' : '') + '>' +
-        '<div class="gw-avatar-wrap" style="margin-bottom:0;">' + gwBuildAvatarSVG(sp) + '</div>' +
-        '<div class="gw-code">' + sp.code + '</div></div>';
-    }).join('');
-
-    const resEl = document.getElementById('gw-join-result');
     if(gs.ended){
-      const target = suspects[gs.targetIndex];
-      resEl.style.display = 'block';
-      resEl.style.color = gs.result === 'win' ? '#39FF14' : '#FF3B6B';
-      resEl.textContent = (gs.result === 'win' ? '✓ TARGET ISOLATED: ' : '✕ THE TARGET WAS: ') + target.code;
+      msg.textContent = gs.winnerId === joinPlayer.id ? '🎉 You solved the case!' : 'Case closed.';
+    } else if(iAmOut){
+      msg.textContent = "You're out — keep watching!";
+    } else if(myTurn){
+      const oppNow = gwOpponentOf(gs, joinPlayer.id);
+      msg.textContent = "🔥 Your turn! Ask " + (oppNow ? nameOf(oppNow) : 'your opponent') + " a question out loud.";
     } else {
-      resEl.style.display = 'none';
+      msg.textContent = 'Waiting for ' + nameOf(asker) + ' to ask…';
+    }
+
+    // my secret suspect
+    const mine = suspects[(gs.secrets || {})[joinPlayer.id]];
+    document.getElementById('gw-join-secret').innerHTML = mine ? gwBuildAvatarSVG(mine) : '–';
+    document.getElementById('gw-join-secret-code').textContent = mine ? mine.code : '';
+
+    // target zone
+    const placed = gwJoinLocal.placed;
+    const zone = document.getElementById('gw-join-zone');
+    zone.classList.toggle('filled', placed !== null);
+    zone.innerHTML = gwZoneHTML(placed !== null ? suspects[placed] : null);
+    document.getElementById('gw-join-zone-code').innerHTML = placed !== null ? suspects[placed].code : '&nbsp;';
+
+    // buttons
+    document.getElementById('gw-join-next-btn').disabled = !myTurn;
+    document.getElementById('gw-join-end-btn').disabled = !(myTurn && placed !== null && gwJoinRemaining(suspects) === placed);
+
+    // grid
+    const only = gwJoinRemaining(suspects);
+    const grid = document.getElementById('gw-join-grid');
+    grid.classList.toggle('gw-board-static', gs.ended || iAmOut);
+    grid.innerHTML = gwCardsHTML(suspects, gwJoinLocal.faded, (myTurn && only >= 0) ? only : -1);
+
+    // result banner
+    const banner = document.getElementById('gw-join-result');
+    banner.classList.remove('show', 'win', 'loss');
+    if(gs.ended){
+      banner.classList.add('show', 'win');
+      banner.textContent = gs.guess && gs.guess.correct
+        ? '✓ ' + nameOf(gs.winnerId).toUpperCase() + ' IDENTIFIED ' + nameOf(gs.guess.targetId).toUpperCase() + "'S SUSPECT: " + suspects[gs.guess.index].code
+        : (gs.winnerId ? '✓ ' + nameOf(gs.winnerId).toUpperCase() + ' WINS — LAST PLAYER STANDING' : 'NO WINNER THIS ROUND');
+    } else if(iAmOut){
+      banner.classList.add('show', 'loss');
+      banner.textContent = "✕ WRONG SUSPECT — YOU'RE OUT";
     }
 
     const last = (gs.log || [])[(gs.log || []).length - 1];
-    document.getElementById('gw-join-last').textContent = last ? 'Last move — ' + last.q + ' → ' + last.a : '';
+    document.getElementById('gw-join-last').textContent = last ? 'Last: ' + last.q + ' → ' + last.a : '';
+
+    gwJoinRenderIdeas();
 
     if(gs.ended){ waJoinStopTimer(); document.getElementById('gw-join-timer').style.display = 'none'; }
     else waJoinRenderTimer(lobby, 'gw-join-timer');
+
+    gwJoinBindBoard();
+  }
+
+  function gwJoinRenderIdeas(){
+    document.getElementById('gw-join-ideas').innerHTML = gwIdeaTabsHTML(gwJoinCat, 'gwJoinSetCat') + gwIdeaListHTML(gwJoinCat);
+  }
+  function gwJoinSetCat(id){ gwJoinCat = id; gwJoinRenderIdeas(); }
+
+  // Wire tap-to-fade + drag-to-target once (listeners live on the persistent grid/zone elements).
+  function gwJoinBindBoard(){
+    if(gwJoinBoundSeed === 'bound') return;
+    gwJoinBoundSeed = 'bound';
+    const gridEl = document.getElementById('gw-join-grid');
+    const zoneEl = document.getElementById('gw-join-zone');
+    const gs = () => joinLobbyRow.game_state || {};
+    const rerender = () => gwJoinRender(joinLobbyRow);
+
+    gwAttachBoardInteractions(gridEl, zoneEl, {
+      canTap: () => { const g = gs(); return !g.ended && !gwJoinInfo(g).iAmOut; },
+      canDrag: (i) => { const g = gs(); return gwJoinInfo(g).myTurn && gwJoinRemaining(gwJoinSuspects) === i; },
+      onTap: (i) => {
+        if(gwJoinLocal.faded.has(i)) gwJoinLocal.faded.delete(i); else gwJoinLocal.faded.add(i);
+        rerender();
+      },
+      onDrop: (i) => { gwJoinLocal.placed = i; rerender(); },
+      onZoneTap: () => {
+        if(gwJoinLocal.placed !== null){ gwJoinLocal.placed = null; rerender(); return; }
+        const only = gwJoinRemaining(gwJoinSuspects);
+        if(gwJoinInfo(gs()).myTurn && only >= 0){ gwJoinLocal.placed = only; rerender(); }
+      }
+    });
   }
 
   async function gwJoinAct(action){
-    if(gwJoinBusy || !joinLobbyRow) return;
+    if(gwJoinBusy || !joinLobbyRow) return null;
     gwJoinBusy = true;
     const me = joinPlayer;
 
     const updated = await window.LobbySupabase.updateGameState(joinLobbyRow.id, (s) => {
       if(s.ended) return s;
       if((s.order || [])[s.turnIndex] !== me.id) return s; // not your turn (anymore)
-      return gwApply(s, gwJoinGetSuspects(s.seed), { ...action, playerName: me.name });
+      return gwApply(s, gwJoinGetSuspects(s.seed), { ...action, playerId: me.id });
     });
 
     gwJoinBusy = false;
     if(updated){
       joinLobbyRow = updated;
-      AwalSounds.play(updated.game_state && updated.game_state.result === 'loss' ? 'incorrectAnswer' : 'correctLetter');
       gwJoinRender(updated);
     }
+    return updated;
   }
 
-  function gwJoinAsk(key){ gwJoinAct({ type: 'ask', key }); }
+  async function gwJoinNextQuestion(){
+    const g = joinLobbyRow.game_state || {};
+    if(!gwJoinInfo(g).myTurn) return;
+    const updated = await gwJoinAct({ type: 'next' });
+    if(updated) AwalSounds.play('correctLetter');
+  }
 
-  function gwJoinEliminate(index){
-    const code = gwJoinGetSuspects(joinLobbyRow.game_state.seed)[index].code;
-    if(!window.confirm('Eliminate ' + code + '? If this is the target, the whole class loses the round.')) return;
-    gwJoinAct({ type: 'eliminate', index });
+  async function gwJoinEndCase(){
+    const g = joinLobbyRow.game_state || {};
+    const placed = gwJoinLocal.placed;
+    if(!gwJoinInfo(g).myTurn || placed === null || gwJoinRemaining(gwJoinSuspects) !== placed) return;
+
+    const code = gwJoinSuspects[placed].code;
+    if(!window.confirm('End the case with ' + code + '?\nIf this is not the other player\'s suspect, you are out.')) return;
+
+    const updated = await gwJoinAct({ type: 'guess', index: placed });
+    if(updated){
+      gwJoinLocal.placed = null;
+      const gs = updated.game_state;
+      AwalSounds.play(gs.guess && gs.guess.correct ? 'correctAnswer' : 'incorrectAnswer');
+      gwJoinRender(updated);
+    }
   }
 
   /* ============ shared join flow ============ */
