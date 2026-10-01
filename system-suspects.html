@@ -29,10 +29,10 @@
   .gw-timer.hot{color:#FF3B6B;}
   .gw-cat{width:100%; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; margin-bottom:10px;}
   .gw-cat-label{font-family:'Space Mono',monospace; font-size:10px; font-weight:800; letter-spacing:0.12em; color:#39FF14; min-width:104px; text-align:right; padding-right:6px;}
-  .gw-qdeck-buttons{flex-direction:column; align-items:stretch;}
   .gw-asked-chip{font-family:'Space Mono',monospace; font-size:12px; border:1px solid #39FF14; color:#39FF14; border-radius:6px; padding:7px 12px;}
-  .gw-view-only .gw-elim-btn{display:none;}
-  .gw-view-only .gw-card:hover:not(.gw-out){transform:none;}
+  details.gw-qdeck-box summary{list-style:none;}
+  details.gw-qdeck-box summary::-webkit-details-marker{display:none;}
+  details.gw-qdeck-box[open] summary{margin-bottom:10px;}
 </style>
 </head>
 <body>
@@ -70,15 +70,13 @@
     <!-- SETUP -->
     <div id="gw-setup" class="gw-panel">
       <h2>SET UP YOUR CASE</h2>
-      <p class="gw-hint">Students take turns asking a question or eliminating a suspect. Everyone works together to isolate the target.</p>
+      <p class="gw-hint">Everyone gets a secret suspect. Players take turns asking each other questions OUT LOUD, crossing off profiles, until someone can name the other player's suspect.</p>
 
       <div class="gw-field">
-        <label>QUESTIONS THE CLASS CAN ASK</label>
-        <select id="gw-trace-limit" onchange="gwUpdateTraceLimit(this.value)">
-          <option value="0" selected>Unlimited questions</option>
-          <option value="5">5 questions</option>
-          <option value="8">8 questions</option>
-          <option value="12">12 questions</option>
+        <label>WHO PLAYS?</label>
+        <select id="gw-teacher-plays" onchange="gwUpdateTeacherPlays(this.value)">
+          <option value="yes" selected>Teacher + students (you play on this screen)</option>
+          <option value="no">Students only (this screen is the host / projector)</option>
         </select>
       </div>
 
@@ -86,15 +84,14 @@
         <label>TIME PER TURN</label>
         <select id="gw-time-limit" onchange="gwUpdateTimeLimit(this.value)">
           <option value="0" selected>No time limit</option>
-          <option value="15">15 seconds</option>
           <option value="30">30 seconds</option>
-          <option value="45">45 seconds</option>
-          <option value="60">60 seconds</option>
+          <option value="60">1 minute</option>
+          <option value="90">90 seconds</option>
+          <option value="120">2 minutes</option>
         </select>
       </div>
 
       <button class="btn btn-primary" onclick="gwCreateRoom()">🏫 Create classroom room</button>
-      <button class="btn btn-ghost" onclick="gwStartSolo()">🎯 Practice solo (no students)</button>
       <p class="gw-error" id="gw-setup-error"></p>
     </div>
 
@@ -109,7 +106,7 @@
       <button class="btn btn-ghost" onclick="gwResetToSetup()">← Back</button>
     </div>
 
-    <!-- PLAY (solo + classroom board) -->
+    <!-- PLAY -->
     <div id="gw-play" style="display:none;">
       <div class="gw-turnbar">
         <span class="gw-turn" id="gw-turn">–</span>
@@ -117,34 +114,34 @@
       </div>
 
       <div class="gw-qdeck">
-        <div class="gw-qdeck-box">
-          <div class="gw-qdeck-label" id="gw-qdeck-label">DOES YOUR SUSPECT HAVE...?</div>
-          <div class="gw-qdeck-buttons" id="gw-qdeck-buttons"></div>
-        </div>
+        <details class="gw-qdeck-box">
+          <summary class="gw-qdeck-label" style="cursor:pointer; margin-bottom:0;">💡 QUESTION IDEAS (ask these out loud)</summary>
+          <div id="gw-ideas"></div>
+        </details>
       </div>
 
       <div class="gw-layout">
+        <!-- LEFT: your secret suspect -->
         <div class="gw-side-box">
-          <div class="gw-side-title">QUESTIONS<br>ASKED</div>
-          <ul class="gw-protocol-list" id="gw-protocol-list"></ul>
-          <div class="gw-traces-left">QUESTIONS LEFT<b id="gw-traces">∞</b></div>
+          <div class="gw-side-title">YOUR SECRET<br>SUSPECT</div>
+          <div class="gw-secret" id="gw-secret-box">–</div>
+          <div class="gw-target-code" id="gw-secret-code" style="margin-top:8px;">&nbsp;</div>
+          <div class="gw-traces-left" style="margin-top:12px;" id="gw-secret-hint">Keep it secret!<br>The other player must guess it.</div>
         </div>
 
+        <!-- CENTER: grid -->
         <div>
-          <div id="gw-result-win" class="gw-result-banner win">
-            ✓ TARGET ISOLATED — SUSPECT <span id="gw-win-code"></span> CONFIRMED
-          </div>
-          <div id="gw-result-loss" class="gw-result-banner loss">
-            ✕ TARGET PURGED IN ERROR — TRACE FAILED
-          </div>
+          <div id="gw-result" class="gw-result-banner"></div>
           <div id="gw-grid" class="gw-grid"></div>
         </div>
 
+        <!-- RIGHT: target + log -->
         <div>
           <div class="gw-side-box" style="margin-bottom:16px;">
             <div class="gw-side-title">TARGET PROFILE</div>
-            <div class="gw-target-box" id="gw-target-box"></div>
-            <div class="gw-target-code" id="gw-target-code">???-??</div>
+            <div class="gw-zone" id="gw-zone">DRAG YOUR FINAL SUSPECT HERE</div>
+            <div class="gw-target-code" id="gw-zone-code" style="margin-top:8px;">&nbsp;</div>
+            <button class="btn btn-dark" id="gw-endcase-btn" onclick="gwEndCase()" style="width:100%; justify-content:center; margin-top:12px;" disabled>END CASE</button>
           </div>
           <div class="gw-side-box">
             <div class="gw-side-title">GAME LOG</div>
@@ -154,8 +151,9 @@
       </div>
 
       <div class="gw-controls">
+        <button class="btn btn-primary" onclick="gwNextQuestion()" id="gw-next-q-btn" style="display:none;">✓ Next question</button>
         <button class="btn btn-ghost" onclick="gwSkipTurn(false)" id="gw-skip-btn" style="display:none;">⏭ Skip this turn</button>
-        <button class="btn btn-primary" onclick="gwNextRound()" id="gw-next-btn" style="display:none;">↻ New Round</button>
+        <button class="btn btn-ghost" onclick="gwFinishCase()" id="gw-finish-btn" style="display:none;">■ Finish &amp; set up a new case</button>
       </div>
     </div>
   </div>
