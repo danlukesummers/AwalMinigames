@@ -405,90 +405,226 @@ function gwFace(s, st, skinDark){
   return f;
 }
 
-/* ---------- Game state + rules ---------- */
+/* ---------- Game state + rules (verbal two-sided guess-who) ---------- */
+// Every player has a SECRET suspect. On your turn you ask your opponent (the next
+// active player in the ring) questions OUT LOUD, fade profiles on your own board,
+// then press "Next question". With one profile left you drag it onto the Target
+// Profile and press End Case: correct = you win, wrong = you're out.
 
-// traceLimit 0 = unlimited questions. `order` = student ids (classroom) or ['solo'].
-function gwNewGameState(order, traceLimit, turnTimeLimit){
+const GW_TEACHER_ID = 'teacher';
+
+function gwShuffle(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// players: [{id, name}] in turn order
+function gwNewGameState(players, turnTimeLimit){
   const seed = Math.floor(Math.random() * 4294967295);
+  const picks = gwShuffle(Array.from({ length: GW_GRID_SIZE }, (_, i) => i));
+  const order = [], names = {}, secrets = {};
+  players.forEach((p, i) => {
+    order.push(p.id);
+    names[p.id] = p.name;
+    secrets[p.id] = picks[i % GW_GRID_SIZE];
+  });
   return {
     game: 'system-suspects',
-    seed,
-    targetIndex: Math.floor(Math.random() * GW_GRID_SIZE),
-    traceLimit: traceLimit || 0,
-    tracesLeft: traceLimit ? traceLimit : null,
-    askedTraits: [],         // ids from GW_QUESTIONS
-    eliminated: [],          // indexes into the seeded suspect list
-    order,
+    version: 2,
+    seed, order, names, secrets,
+    out: [],
     turnIndex: 0,
     log: [],
     turnTimeLimit: turnTimeLimit || 0,
     ended: false,
-    result: null             // 'win' | 'loss'
+    result: null,        // 'win'
+    winnerId: null,
+    guess: null          // {guesserId, targetId, index, correct}
   };
 }
 
-function gwOutOfQuestions(state){
-  return state.traceLimit > 0 && state.tracesLeft <= 0;
+function gwActivePlayers(state){
+  return state.order.filter(id => !state.out.includes(id));
 }
 
-// Pure state transition shared by teacher (solo/skip) and students.
-// action: {type:'ask', key} | {type:'eliminate', index} | {type:'skip'}, + playerName
+// The player `id` is asking: the next active player after them in the ring.
+function gwOpponentOf(state, id){
+  const n = state.order.length;
+  const start = state.order.indexOf(id);
+  if(start < 0) return null;
+  for(let k = 1; k < n; k++){
+    const cand = state.order[(start + k) % n];
+    if(!state.out.includes(cand)) return cand;
+  }
+  return null;
+}
+
+function gwAdvanceTurn(s){
+  const n = s.order.length;
+  for(let k = 1; k <= n; k++){
+    const i = (s.turnIndex + k) % n;
+    if(!s.out.includes(s.order[i])){ s.turnIndex = i; return; }
+  }
+}
+
+// action: {type:'next', playerId} | {type:'guess', playerId, index} | {type:'skip'}
 function gwApply(state, suspects, action){
   if(state.ended) return state;
 
-  const s = {
-    ...state,
-    askedTraits: [...(state.askedTraits || [])],
-    eliminated: [...(state.eliminated || [])],
-    log: [...(state.log || [])]
-  };
-  const target = suspects[s.targetIndex];
-  const tag = action.playerName ? action.playerName + ': ' : '';
+  const s = { ...state, out: [...state.out], log: [...state.log] };
+  const asker = s.order[s.turnIndex];
+  const name = (id) => (s.names && s.names[id]) || 'Player';
 
-  if(action.type === 'ask'){
-    const question = gwFindQuestion(action.key);
-    if(!question || gwOutOfQuestions(s) || s.askedTraits.includes(action.key)) return state;
+  if(action.type !== 'skip' && action.playerId !== asker) return state;
 
-    const targetHas = !!question.test(target);
-    let removed = 0;
-    suspects.forEach((sp, i) => {
-      if(i !== s.targetIndex && !s.eliminated.includes(i) && !!question.test(sp) !== targetHas){
-        s.eliminated.push(i);
-        removed++;
-      }
-    });
-    if(s.traceLimit > 0) s.tracesLeft--;
-    s.askedTraits.push(action.key);
-    s.log.push({ q: tag + question.q,
-                 a: (targetHas ? 'YES' : 'NO') + '. (' + removed + ' suspect' + (removed === 1 ? '' : 's') + ' eliminated)' });
-
-  } else if(action.type === 'eliminate'){
-    const i = action.index;
-    if(!suspects[i] || s.eliminated.includes(i)) return state;
-    s.eliminated.push(i);
-    if(i === s.targetIndex){
-      s.ended = true;
-      s.result = 'loss';
-      s.log.push({ q: tag + 'Eliminate ' + suspects[i].code, a: 'TARGET PURGED IN ERROR' });
-    } else {
-      s.log.push({ q: tag + 'Eliminate ' + suspects[i].code, a: 'Not the target' });
-    }
+  if(action.type === 'next'){
+    const opp = gwOpponentOf(s, asker);
+    s.log.push({ q: name(asker) + (opp ? ' asked ' + name(opp) : ' asked a question'), a: 'Next question' });
+    gwAdvanceTurn(s);
 
   } else if(action.type === 'skip'){
-    s.log.push({ q: (action.playerName || 'Player') + ' skipped a turn', a: '—' });
+    s.log.push({ q: name(asker) + ' skipped a turn', a: '—' });
+    gwAdvanceTurn(s);
+
+  } else if(action.type === 'guess'){
+    const opp = gwOpponentOf(s, asker);
+    if(!opp || !suspects[action.index]) return state;
+
+    const correct = s.secrets[opp] === action.index;
+    s.guess = { guesserId: asker, targetId: opp, index: action.index, correct };
+
+    if(correct){
+      s.ended = true;
+      s.result = 'win';
+      s.winnerId = asker;
+      s.log.push({ q: name(asker) + ' named ' + suspects[action.index].code, a: 'CORRECT — ' + name(asker) + ' wins!' });
+    } else {
+      s.out.push(asker);
+      s.log.push({ q: name(asker) + ' named ' + suspects[action.index].code, a: 'WRONG — ' + name(asker) + ' is out' });
+      const left = gwActivePlayers(s);
+      if(left.length <= 1){
+        s.ended = true;
+        s.result = 'win';
+        s.winnerId = left[0] || null;
+        s.log.push({ q: 'Round result', a: left[0] ? name(left[0]) + ' is the last player standing!' : 'Nobody wins' });
+      } else {
+        gwAdvanceTurn(s);
+      }
+    }
   } else {
     return state;
   }
-
-  if(!s.ended && (suspects.length - s.eliminated.length) === 1 && !s.eliminated.includes(s.targetIndex)){
-    s.ended = true;
-    s.result = 'win';
-    s.log.push({ q: 'Round result', a: 'TARGET ISOLATED — ' + target.code + ' CONFIRMED' });
-  }
-
-  if(!s.ended){
-    const n = (s.order || []).length || 1;
-    s.turnIndex = (s.turnIndex + 1) % n;
-  }
   return s;
+}
+
+/* ---------- Shared board UI (used by teacher page AND student page) ---------- */
+
+(function gwInjectSharedStyles(){
+  if(typeof document === 'undefined' || document.getElementById('gw-shared-styles')) return;
+  const st = document.createElement('style');
+  st.id = 'gw-shared-styles';
+  st.textContent = `
+    .gw-card{user-select:none; -webkit-user-select:none; cursor:pointer;}
+    .gw-card .gw-avatar-wrap, .gw-card .gw-code{pointer-events:none;}
+    .gw-card.gw-faded{opacity:0.38; filter:grayscale(0.85); transition:opacity .2s ease, filter .2s ease;}
+    .gw-card.gw-draggable{cursor:grab; touch-action:none; border-color:#39FF14 !important; box-shadow:0 0 16px rgba(57,255,20,0.6); animation:gwPulse 1.3s ease-in-out infinite;}
+    @keyframes gwPulse{0%,100%{box-shadow:0 0 8px rgba(57,255,20,0.35);}50%{box-shadow:0 0 20px rgba(57,255,20,0.85);}}
+    .gw-board-static .gw-card{cursor:default;}
+    .gw-zone{position:relative; aspect-ratio:10/13; border:2px dashed rgba(0,243,255,0.5); border-radius:8px; background:rgba(0,243,255,0.05); display:flex; align-items:center; justify-content:center; text-align:center; overflow:hidden; cursor:pointer; transition:border-color .15s ease, background .15s ease; color:rgba(228,255,251,0.6); font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:0.05em; padding:8px;}
+    .gw-zone.gw-zone-hot{border-color:#39FF14; background:rgba(57,255,20,0.12);}
+    .gw-zone.filled{border-style:solid; border-color:#39FF14; padding:0; display:block;}
+    .gw-zone .gw-avatar-wrap{margin:0; border-radius:0; height:100%; aspect-ratio:auto;}
+    .gw-secret{aspect-ratio:10/13; border-radius:8px; overflow:hidden; border:2px solid #00F3FF; background:#0F1F1A; display:flex; align-items:center; justify-content:center; color:rgba(228,255,251,0.5); font-family:'Space Mono',monospace; font-size:10.5px; text-align:center; padding:8px;}
+    .gw-idea-tabs{display:flex; gap:6px; flex-wrap:wrap; margin:10px 0;}
+    .gw-idea-tab{background:transparent; border:1px solid rgba(0,243,255,0.35); color:#00F3FF; border-radius:6px; padding:5px 9px; font-family:'Space Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.06em; cursor:pointer;}
+    .gw-idea-tab.active{background:#00F3FF; color:#050908;}
+    .gw-idea-list{font-family:'Space Mono',monospace; font-size:11.5px; color:rgba(228,255,251,0.8); line-height:1.9; text-align:left;}
+    .gw-idea-list div::before{content:"› "; color:#39FF14;}
+  `;
+  document.head.appendChild(st);
+})();
+
+// Cards for the 16 profiles. `faded` = Set of indexes the player has crossed off.
+// dragIndex = the one card that may be dragged to the target (or -1).
+function gwCardsHTML(suspects, faded, dragIndex){
+  return suspects.map((sp, i) =>
+    '<div class="gw-card' + (faded.has(i) ? ' gw-faded' : '') + (i === dragIndex ? ' gw-draggable' : '') + '" data-index="' + i + '">' +
+      '<div class="gw-avatar-wrap">' + gwBuildAvatarSVG(sp) + '</div>' +
+      '<div class="gw-code">' + sp.code + '</div>' +
+    '</div>'
+  ).join('');
+}
+
+// Tap = fade/unfade. Press-and-drag the single remaining card onto the target zone.
+// cfg: { canTap(i), canDrag(i), onTap(i), onDrop(i), onZoneTap() }
+function gwAttachBoardInteractions(gridEl, zoneEl, cfg){
+  let drag = null;
+  const overZone = (x, y) => {
+    const r = zoneEl.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  };
+
+  gridEl.addEventListener('pointerdown', (e) => {
+    if(e.button && e.button > 0) return;
+    const card = e.target.closest('.gw-card');
+    if(!card || !gridEl.contains(card)) return;
+    const index = Number(card.dataset.index);
+    drag = { index, card, x: e.clientX, y: e.clientY, moved: false, ghost: null, can: !!cfg.canDrag(index) };
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    if(!drag || !drag.can) return;
+    if(!drag.moved){
+      if(Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return;
+      drag.moved = true;
+      const r = drag.card.getBoundingClientRect();
+      drag.w = r.width / 2; drag.h = r.height / 2;
+      drag.ghost = drag.card.cloneNode(true);
+      drag.ghost.classList.remove('gw-draggable');
+      drag.ghost.style.cssText = 'position:fixed; z-index:9999; pointer-events:none; width:' + r.width + 'px; opacity:0.93; transform:scale(1.08) rotate(-3deg); box-shadow:0 12px 28px rgba(0,0,0,0.5);';
+      document.body.appendChild(drag.ghost);
+      drag.card.style.opacity = '0.3';
+    }
+    drag.ghost.style.left = (e.clientX - drag.w) + 'px';
+    drag.ghost.style.top = (e.clientY - drag.h) + 'px';
+    zoneEl.classList.toggle('gw-zone-hot', overZone(e.clientX, e.clientY));
+  });
+
+  const finish = (e) => {
+    if(!drag) return;
+    const d = drag;
+    drag = null;
+    if(d.ghost) d.ghost.remove();
+    d.card.style.opacity = '';
+    zoneEl.classList.remove('gw-zone-hot');
+    if(d.moved){
+      if(e.type === 'pointerup' && overZone(e.clientX, e.clientY)) cfg.onDrop(d.index);
+    } else if(e.type === 'pointerup' && cfg.canTap(d.index)){
+      cfg.onTap(d.index);
+    }
+  };
+  window.addEventListener('pointerup', finish);
+  window.addEventListener('pointercancel', finish);
+
+  zoneEl.addEventListener('click', () => { if(cfg.onZoneTap) cfg.onZoneTap(); });
+}
+
+// Zone contents: the suspect placed on the target profile (or an empty prompt).
+function gwZoneHTML(suspect){
+  if(!suspect) return 'DRAG YOUR FINAL SUSPECT HERE';
+  return '<div class="gw-avatar-wrap">' + gwBuildAvatarSVG(suspect) + '</div>';
+}
+
+// "Question ideas" helper so players have vocabulary to ask with.
+function gwIdeaTabsHTML(activeCat, fnName){
+  return '<div class="gw-idea-tabs">' + GW_CATEGORIES.map(c =>
+    '<button class="gw-idea-tab' + (c.id === activeCat ? ' active' : '') + '" onclick="' + fnName + '(\'' + c.id + '\')">' + c.label + '</button>'
+  ).join('') + '</div>';
+}
+function gwIdeaListHTML(activeCat){
+  return '<div class="gw-idea-list">' + GW_QUESTIONS.filter(q => q.cat === activeCat).map(q => '<div>' + q.q + '</div>').join('') + '</div>';
 }
