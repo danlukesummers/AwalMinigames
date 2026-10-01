@@ -1,16 +1,23 @@
 /* AWAL Minigames -- System Suspects (teacher side). Only loaded on system-suspects.html.
-   Depends on system-suspects-core.js (shared board generation + game rules). */
+   Depends on system-suspects-core.js (board generation, rules, shared board UI).
 
-const gwCfg = { traceLimit: 0, turnTimeLimit: 0 }; // traceLimit 0 = unlimited questions
+   Verbal guess-who: everyone gets a secret suspect. Players ask each other
+   questions OUT LOUD, fade profiles on their own board, press "Next question",
+   and with one profile left drag it onto the Target Profile and press End Case. */
+
+const gwCfg = { teacherPlays: true, turnTimeLimit: 0 };
 
 const gwView = {
-  mode: null,          // 'solo' | 'classroom'
-  gs: null,            // current game_state
-  suspects: [],        // built from gs.seed
-  students: [],        // [{id, name}]
-  prevEliminated: [],  // to animate newly eliminated cards
-  lobby: null
+  gs: null,          // current game_state
+  suspects: [],      // built from gs.seed
+  suspectsSeed: null,
+  students: [],      // [{id, name}]
+  lobby: null,
+  busy: false
 };
+
+// Per-player, local-only board state (not shared): which profiles I've faded + what I've dragged to the target.
+const gwLocal = { faded: new Set(), placed: null, cat: 'mood' };
 
 let gwLobbyChannel = null;
 let gwPresenceChannel = null;
@@ -18,39 +25,33 @@ let gwTimerHandle = null;
 
 function gwSound(name){ if(window.AwalSounds) AwalSounds.play(name); }
 function gwEl(id){ return document.getElementById(id); }
+function gwEsc(str){
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function gwMe(){ return gwCfg.teacherPlays ? GW_TEACHER_ID : null; }
 
 /* ============ SETUP ============ */
 
-function gwUpdateTraceLimit(v){ gwCfg.traceLimit = parseInt(v, 10) || 0; }
+function gwUpdateTeacherPlays(v){ gwCfg.teacherPlays = (v === 'yes'); }
 function gwUpdateTimeLimit(v){ gwCfg.turnTimeLimit = parseInt(v, 10) || 0; }
 
 function gwShow(which){
   ['gw-setup', 'gw-room', 'gw-play'].forEach(id => { gwEl(id).style.display = (id === which) ? 'block' : 'none'; });
 }
 
-function gwStartSolo(){
-  gwView.mode = 'solo';
-  gwLoadState(gwNewGameState(['solo'], gwCfg.traceLimit, 0));
-  gwShow('gw-play');
-  gwRender();
-}
-
 function gwLoadState(gs){
   gwView.gs = gs;
-  if(!gwView.suspects.length || gwView.suspectsSeed !== gs.seed){
+  if(gwView.suspectsSeed !== gs.seed || !gwView.suspects.length){
     gwView.suspects = gwSuspectsFromSeed(gs.seed);
     gwView.suspectsSeed = gs.seed;
-    gwView.prevEliminated = [];
   }
 }
 
 /* ============ CLASSROOM ROOM ============ */
 
 async function gwCreateRoom(){
-  const errEl = gwEl('gw-setup-error');
-  errEl.style.display = 'none';
+  gwEl('gw-setup-error').style.display = 'none';
 
-  gwView.mode = 'classroom';
   gwView.students = [];
   gwShow('gw-room');
   gwEl('gw-room-code').textContent = '••••••';
@@ -114,22 +115,21 @@ function gwCopyRoomLink(){
   }).catch(() => {});
 }
 
+function gwMinStudents(){ return gwCfg.teacherPlays ? 1 : 2; }
+
 function gwRenderRoster(){
-  const wrap = gwEl('gw-roster');
   const count = gwView.students.length;
-  let html = gwView.students.map(s => '<span class="gw-chip">' + gwEsc(s.name) + '</span>').join('');
-  if(!count) html = '<span class="gw-chip empty">Waiting for students…</span>';
-  wrap.innerHTML = html;
+  const min = gwMinStudents();
+  let html = gwCfg.teacherPlays ? '<span class="gw-chip">Teacher (you)</span>' : '';
+  html += gwView.students.map(s => '<span class="gw-chip">' + gwEsc(s.name) + '</span>').join('');
+  if(!count) html += '<span class="gw-chip empty">Waiting for students…</span>';
+  gwEl('gw-roster').innerHTML = html;
 
   const btn = gwEl('gw-begin-btn');
-  btn.disabled = count < 1;
-  btn.textContent = count < 1
-    ? '▶ Need at least 1 student (0 joined)'
-    : '▶ Begin case (' + count + ' student' + (count === 1 ? '' : 's') + ' joined)';
-}
-
-function gwEsc(str){
-  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  btn.disabled = count < min;
+  btn.textContent = count < min
+    ? '▶ Need at least ' + min + ' student' + (min === 1 ? '' : 's') + ' (' + count + ' joined)'
+    : '▶ Begin case (' + (count + (gwCfg.teacherPlays ? 1 : 0)) + ' players)';
 }
 
 function gwHandleStudentLeft(playerId){
@@ -142,120 +142,145 @@ function gwHandleStudentLeft(playerId){
 }
 
 async function gwBeginRound(){
-  if(!gwView.lobby || gwView.students.length < 1) return;
+  if(!gwView.lobby || gwView.students.length < gwMinStudents()) return;
 
-  const order = gwView.students.map(s => s.id);
-  const gs = gwNewGameState(order, gwCfg.traceLimit, gwCfg.turnTimeLimit);
+  const players = [];
+  if(gwCfg.teacherPlays) players.push({ id: GW_TEACHER_ID, name: 'Teacher' });
+  gwView.students.forEach(s => players.push({ id: s.id, name: s.name }));
+
+  const gs = gwNewGameState(players, gwCfg.turnTimeLimit);
 
   const started = await window.LobbySupabase.startWordAssociationGame(gwView.lobby.id, gs, gwCfg.turnTimeLimit);
   if(started) gwView.lobby = started;
 
+  gwLocal.faded = new Set();
+  gwLocal.placed = null;
   gwLoadState(gs);
   gwShow('gw-play');
+  gwRenderIdeas();
   gwRender();
 }
 
-/* ============ RENDER ============ */
+/* ============ BOARD ============ */
 
-function gwNameFor(id){
-  const s = gwView.students.find(x => x.id === id);
-  return s ? s.name : 'Player';
+function gwName(id){ return (gwView.gs.names && gwView.gs.names[id]) || 'Player'; }
+
+function gwRemainingIndex(){
+  // the single profile left unfaded, or -1 if there isn't exactly one
+  const left = [];
+  gwView.suspects.forEach((_, i) => { if(!gwLocal.faded.has(i)) left.push(i); });
+  return left.length === 1 ? left[0] : -1;
+}
+
+function gwState(){
+  const gs = gwView.gs;
+  const me = gwMe();
+  const asker = gs.order[gs.turnIndex];
+  const iAmOut = !!me && gs.out.includes(me);
+  const myTurn = !!me && !gs.ended && !iAmOut && asker === me;
+  return { gs, me, asker, iAmOut, myTurn };
 }
 
 function gwRender(){
   const gs = gwView.gs;
   if(!gs) return;
-  const solo = gwView.mode === 'solo';
-  const target = gwView.suspects[gs.targetIndex];
+  const { me, asker, iAmOut, myTurn } = gwState();
+  const suspects = gwView.suspects;
+
+  if(!myTurn) gwLocal.placed = null;
+  if(gwLocal.placed !== null && gwLocal.faded.has(gwLocal.placed)) gwLocal.placed = null;
 
   // turn bar
   const turnEl = gwEl('gw-turn');
-  if(gs.ended) turnEl.textContent = gs.result === 'win' ? '✓ CASE CLOSED' : '✕ CASE FAILED';
-  else if(solo) turnEl.textContent = 'YOUR MOVE';
-  else turnEl.textContent = '▶ ' + gwNameFor(gs.order[gs.turnIndex]).toUpperCase() + "'S TURN";
-
-  // question deck: full bank in solo mode, just the asked questions when the class is playing
-  const deck = gwEl('gw-qdeck-buttons');
-  const outOfQs = gwOutOfQuestions(gs);
-  if(solo){
-    gwEl('gw-qdeck-label').textContent = 'ASK A QUESTION';
-    deck.innerHTML = GW_CATEGORIES.map(cat =>
-      '<div class="gw-cat"><span class="gw-cat-label">' + cat.label + '</span>' +
-      GW_QUESTIONS.filter(q => q.cat === cat.id).map(q => {
-        const disabled = gs.askedTraits.includes(q.id) || outOfQs || gs.ended;
-        return '<button class="gw-qbtn" ' + (disabled ? 'disabled ' : '') + 'onclick="gwSoloAsk(\'' + q.id + '\')">[' + q.label + ']</button>';
-      }).join('') + '</div>'
-    ).join('');
+  if(gs.ended){
+    turnEl.textContent = '■ CASE CLOSED';
   } else {
-    gwEl('gw-qdeck-label').textContent = 'QUESTIONS ASKED BY THE CLASS';
-    deck.innerHTML = '<div class="gw-cat">' + (gs.askedTraits.length
-      ? gs.askedTraits.map(id => '<span class="gw-asked-chip">' + gwFindQuestion(id).label + '</span>').join('')
-      : '<span class="gw-asked-chip" style="border-color:rgba(228,255,251,0.25); color:rgba(228,255,251,0.45);">none yet</span>') + '</div>';
+    const opp = gwOpponentOf(gs, asker);
+    turnEl.textContent = '▶ ' + gwName(asker).toUpperCase() + "'S TURN" + (opp ? ' — ASKING ' + gwName(opp).toUpperCase() : '');
   }
 
-  gwEl('gw-protocol-list').innerHTML = gs.askedTraits.length
-    ? gs.askedTraits.map(id => '<li class="pending">[' + gwFindQuestion(id).label + ']</li>').join('')
-    : '<li class="pending">— none yet —</li>';
-  gwEl('gw-traces').textContent = gs.traceLimit > 0 ? gs.tracesLeft : '∞';
+  // my secret suspect
+  const secretBox = gwEl('gw-secret-box');
+  const secretCode = gwEl('gw-secret-code');
+  if(me){
+    const mine = suspects[gs.secrets[me]];
+    secretBox.innerHTML = '<div class="gw-avatar-wrap" style="margin:0; border-radius:0; height:100%; aspect-ratio:auto; width:100%;">' + gwBuildAvatarSVG(mine) + '</div>';
+    secretCode.textContent = mine.code;
+    gwEl('gw-secret-hint').innerHTML = 'Keep it secret!<br>The other player must guess it.';
+  } else {
+    secretBox.textContent = 'HOST VIEW';
+    secretCode.innerHTML = '&nbsp;';
+    gwEl('gw-secret-hint').innerHTML = 'Students are playing.<br>You can skip a stuck turn.';
+  }
 
-  // grid (animate cards eliminated since the last render)
+  // grid
   const grid = gwEl('gw-grid');
-  grid.classList.toggle('gw-view-only', !solo);
-  const fresh = gs.eliminated.filter(i => !gwView.prevEliminated.includes(i));
-  grid.innerHTML = gwView.suspects.map((s, i) => {
-    const out = gs.eliminated.includes(i);
-    const glitch = fresh.includes(i);
-    return '<div class="gw-card' + (out && !glitch ? ' gw-out' : '') + (glitch ? ' gw-glitching' : '') + '" id="' + s.id + '">' +
-      '<div class="gw-avatar-wrap">' + gwBuildAvatarSVG(s) + '</div>' +
-      '<div class="gw-code">' + s.code + '</div>' +
-      '<button class="gw-elim-btn" onclick="gwManualEliminate(' + i + ')">ELIMINATE</button>' +
-    '</div>';
-  }).join('');
-  if(fresh.length){
-    setTimeout(() => {
-      fresh.forEach(i => {
-        const el = gwEl(gwView.suspects[i].id);
-        if(el){ el.classList.remove('gw-glitching'); el.classList.add('gw-out'); }
-      });
-    }, 350);
-    gwSound(gs.result === 'loss' ? 'incorrectAnswer' : 'correctLetter');
+  const dragIdx = (myTurn && gwRemainingIndex() >= 0) ? gwRemainingIndex() : -1;
+  grid.classList.toggle('gw-board-static', !me || gs.ended || iAmOut);
+  grid.innerHTML = gwCardsHTML(suspects, gwLocal.faded, dragIdx);
+
+  // target profile zone
+  const zone = gwEl('gw-zone');
+  const placed = gwLocal.placed;
+  zone.classList.toggle('filled', placed !== null);
+  zone.innerHTML = gwZoneHTML(placed !== null ? suspects[placed] : null);
+  gwEl('gw-zone-code').innerHTML = placed !== null ? suspects[placed].code : '&nbsp;';
+  gwEl('gw-endcase-btn').disabled = !(myTurn && placed !== null && gwRemainingIndex() === placed);
+
+  // result banner
+  const banner = gwEl('gw-result');
+  banner.classList.remove('show', 'win', 'loss');
+  if(gs.ended){
+    banner.classList.add('show', 'win');
+    if(gs.guess && gs.guess.correct){
+      banner.textContent = '✓ ' + gwName(gs.winnerId).toUpperCase() + ' IDENTIFIED ' + gwName(gs.guess.targetId).toUpperCase() + "'S SUSPECT: " + suspects[gs.guess.index].code;
+    } else {
+      banner.textContent = gs.winnerId ? '✓ ' + gwName(gs.winnerId).toUpperCase() + ' WINS — LAST PLAYER STANDING' : 'NO WINNER THIS ROUND';
+    }
+  } else if(iAmOut){
+    banner.classList.add('show', 'loss');
+    banner.textContent = "✕ WRONG SUSPECT — YOU'RE OUT. KEEP WATCHING!";
   }
-  gwView.prevEliminated = gs.eliminated.slice();
 
   // log
   const log = gwEl('gw-log');
   log.innerHTML = gs.log.map(e =>
-    '<div class="gw-log-entry"><b>Q:</b> ' + gwEsc(e.q) + '<span class="gw-log-a">A: ' + gwEsc(e.a) + '</span></div>'
+    '<div class="gw-log-entry"><b>›</b> ' + gwEsc(e.q) + '<span class="gw-log-a">' + gwEsc(e.a) + '</span></div>'
   ).join('');
   log.scrollTop = log.scrollHeight;
 
-  // target profile: hidden until the round ends
-  const box = gwEl('gw-target-box');
-  const codeEl = gwEl('gw-target-code');
-  if(gs.ended){
-    box.innerHTML = gwBuildAvatarSVG(target);
-    codeEl.textContent = target.code;
-    codeEl.classList.add('revealed');
-  } else {
-    box.innerHTML = '<svg class="gw-target-silhouette" viewBox="0 0 24 24" fill="rgba(228,255,251,0.15)"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.4 0-9 2.2-9 6v2h18v-2c0-3.8-4.6-6-9-6Z"/></svg>';
-    codeEl.textContent = '???-??';
-    codeEl.classList.remove('revealed');
-  }
-
-  gwEl('gw-win-code').textContent = target.code;
-  gwEl('gw-result-win').classList.toggle('show', gs.ended && gs.result === 'win');
-  gwEl('gw-result-loss').classList.toggle('show', gs.ended && gs.result === 'loss');
-
-  // buttons
-  gwEl('gw-skip-btn').style.display = (!solo && !gs.ended) ? 'inline-flex' : 'none';
-  const nextBtn = gwEl('gw-next-btn');
-  nextBtn.style.display = 'inline-flex';
-  nextBtn.textContent = gs.ended ? (solo ? '↻ New Round' : '↻ Finish & set up a new case') : (solo ? '↻ New Round' : '■ End case');
+  // controls
+  gwEl('gw-next-q-btn').style.display = myTurn ? 'inline-flex' : 'none';
+  gwEl('gw-skip-btn').style.display = gs.ended ? 'none' : 'inline-flex';
+  gwEl('gw-finish-btn').style.display = 'inline-flex';
 
   gwStartTimer();
 }
 
-/* ============ TURN TIMER (classroom) ============ */
+function gwRenderIdeas(){
+  gwEl('gw-ideas').innerHTML = gwIdeaTabsHTML(gwLocal.cat, 'gwSetIdeaCat') + gwIdeaListHTML(gwLocal.cat);
+}
+function gwSetIdeaCat(id){ gwLocal.cat = id; gwRenderIdeas(); }
+
+// Board interactions (tap to fade, drag the last suspect to the target)
+gwAttachBoardInteractions(gwEl('gw-grid'), gwEl('gw-zone'), {
+  canTap: () => { if(!gwView.gs) return false; const st = gwState(); return !!st.me && !gwView.gs.ended && !st.iAmOut; },
+  canDrag: (i) => { if(!gwView.gs) return false; const st = gwState(); return st.myTurn && gwRemainingIndex() === i; },
+  onTap: (i) => {
+    if(gwLocal.faded.has(i)) gwLocal.faded.delete(i); else gwLocal.faded.add(i);
+    gwRender();
+  },
+  onDrop: (i) => { gwLocal.placed = i; gwRender(); },
+  onZoneTap: () => {
+    if(!gwView.gs) return;
+    if(gwLocal.placed !== null){ gwLocal.placed = null; gwRender(); return; }
+    const st = gwState();
+    const only = gwRemainingIndex();
+    if(st.myTurn && only >= 0){ gwLocal.placed = only; gwRender(); }
+  }
+});
+
+/* ============ TURN TIMER ============ */
 
 function gwStopTimer(){ if(gwTimerHandle){ clearInterval(gwTimerHandle); gwTimerHandle = null; } }
 
@@ -265,11 +290,11 @@ function gwStartTimer(){
   const gs = gwView.gs;
   const lobby = gwView.lobby;
 
-  if(gwView.mode !== 'classroom' || !lobby || gs.ended){ timerEl.textContent = ''; return; }
+  if(!lobby || gs.ended){ timerEl.textContent = ''; return; }
 
   const limit = Number(lobby.time_limit || gs.turnTimeLimit || 0);
   const startedAt = lobby.round_started_at;
-  if(!limit || !startedAt){ timerEl.textContent = 'No time limit'; timerEl.classList.remove('hot'); return; }
+  if(!limit || !startedAt){ timerEl.textContent = ''; timerEl.classList.remove('hot'); return; }
 
   let handled = false;
   const tick = () => {
@@ -289,47 +314,60 @@ function gwStartTimer(){
 
 /* ============ ACTIONS ============ */
 
-function gwSoloAsk(key){
-  if(gwView.mode !== 'solo') return;
-  gwLoadState(gwApply(gwView.gs, gwView.suspects, { type: 'ask', key }));
-  gwRender();
-}
-
-function gwManualEliminate(index){
-  if(gwView.mode !== 'solo') return; // in class, students make the moves
-  gwLoadState(gwApply(gwView.gs, gwView.suspects, { type: 'eliminate', index }));
-  gwRender();
-}
-
-async function gwSkipTurn(auto){
-  if(gwView.mode !== 'classroom' || !gwView.lobby || gwView.gs.ended) return;
+// Applies an action to the shared game_state. Guarded so a double-click (or the
+// timer firing at the same moment) can't advance the turn twice.
+async function gwSend(action){
+  if(gwView.busy || !gwView.lobby || !gwView.gs || gwView.gs.ended) return null;
+  gwView.busy = true;
 
   const expectedTurn = gwView.gs.turnIndex;
   const expectedLog = gwView.gs.log.length;
 
   const updated = await window.LobbySupabase.updateGameState(gwView.lobby.id, (s) => {
     if(s.ended) return s;
-    // someone already moved while we were waiting -> don't skip an extra player
     if(s.turnIndex !== expectedTurn || (s.log || []).length !== expectedLog) return s;
-    const name = gwNameFor((s.order || [])[s.turnIndex]);
-    return gwApply(s, gwView.suspects, { type: 'skip', playerName: name });
+    return gwApply(s, gwView.suspects, action);
   });
 
+  gwView.busy = false;
   if(updated){
     gwView.lobby = updated;
     gwLoadState(updated.game_state);
-    gwSound(auto ? 'incorrectAnswer' : 'leave');
+  }
+  return updated;
+}
+
+async function gwNextQuestion(){
+  const st = gwState();
+  if(!st.myTurn) return;
+  const updated = await gwSend({ type: 'next', playerId: st.me });
+  if(updated){ gwSound('correctLetter'); gwRender(); }
+}
+
+async function gwEndCase(){
+  const st = gwState();
+  const placed = gwLocal.placed;
+  if(!st.myTurn || placed === null || gwRemainingIndex() !== placed) return;
+
+  const code = gwView.suspects[placed].code;
+  if(!window.confirm('End the case with ' + code + '?\nIf this is not the other player\'s suspect, you are out.')) return;
+
+  const updated = await gwSend({ type: 'guess', playerId: st.me, index: placed });
+  if(updated){
+    gwLocal.placed = null;
+    const gs = updated.game_state;
+    gwSound(gs.guess && gs.guess.correct ? 'correctAnswer' : 'incorrectAnswer');
     gwRender();
   }
 }
 
-async function gwNextRound(){
-  if(gwView.mode === 'solo'){
-    gwLoadState(gwNewGameState(['solo'], gwCfg.traceLimit, 0));
-    gwRender();
-    return;
-  }
-  // classroom: close this room, back to setup for a fresh case
+async function gwSkipTurn(auto){
+  if(!gwView.gs || gwView.gs.ended) return;
+  const updated = await gwSend({ type: 'skip' });
+  if(updated){ gwSound(auto ? 'incorrectAnswer' : 'leave'); gwRender(); }
+}
+
+async function gwFinishCase(){
   gwStopTimer();
   if(gwView.lobby && window.LobbySupabase){
     await window.LobbySupabase.endWordAssociationGame(gwView.lobby.id);
@@ -345,12 +383,12 @@ function gwResetToSetup(){
   }
   gwView.lobby = null;
   gwView.gs = null;
-  gwView.mode = null;
   gwView.students = [];
   gwView.suspects = [];
-  gwView.prevEliminated = [];
+  gwView.suspectsSeed = null;
+  gwLocal.faded = new Set();
+  gwLocal.placed = null;
   gwShow('gw-setup');
 }
 
-// Page starts on the setup screen (classroom room or solo practice).
 gwShow('gw-setup');
