@@ -1,301 +1,356 @@
-/* AWAL Minigames -- System Suspects (Guess Who) game logic. Only loaded on system-suspects.html. */
+/* AWAL Minigames -- System Suspects (teacher side). Only loaded on system-suspects.html.
+   Depends on system-suspects-core.js (shared board generation + game rules). */
 
-  /* ============ SYSTEM SUSPECTS (Guess Who beta) ============ */
-  /* Procedural pixel-avatar generator: every suspect is built from a small
-     set of boolean/enum traits, rendered as layered SVG rects on a 10x13
-     pixel grid. No external image assets. */
+const gwCfg = { traceLimit: 0, turnTimeLimit: 0 }; // traceLimit 0 = unlimited questions
 
-  const GW_SKIN_TONES = ['#F5D0A9', '#E8B896', '#C68863', '#8D5524', '#5C3A21'];
-  const GW_HAIR_COLORS = ['#1A1A1A', '#3B2414', '#5C3317', '#722F37'];
-  const GW_GREY_HAIR = '#B8B8C0';
-  const GW_HAT_COLORS = ['#00F3FF', '#39FF14', '#A855F7', '#FFB020', '#FF3B6B'];
-  const GW_APPAREL = [
-    { name: 'CYAN', hex: '#00F3FF' }, { name: 'LIME', hex: '#39FF14' },
-    { name: 'VIOLET', hex: '#A855F7' }, { name: 'AMBER', hex: '#FFB020' },
-  ];
+const gwView = {
+  mode: null,          // 'solo' | 'classroom'
+  gs: null,            // current game_state
+  suspects: [],        // built from gs.seed
+  students: [],        // [{id, name}]
+  prevEliminated: [],  // to animate newly eliminated cards
+  lobby: null
+};
 
-  // The 6 interrogation traits. Each maps to a boolean field on the suspect object.
-  const GW_TRAITS = [
-    { key: 'hasHat',      label: 'HAT' },
-    { key: 'hasGlasses',  label: 'GLASSES' },
-    { key: 'hasBeard',    label: 'BEARD' },
-    { key: 'hasGreyHair', label: 'GREY HAIR' },
-    { key: 'hasNecklace', label: 'NECKLACE' },
-    { key: 'isWoman',     label: 'WOMAN' },
-  ];
-  const GW_TRACE_LIMIT = 4; // fewer attempts than traits available -> real strategic choice
-  const GW_GRID_SIZE = 16;
+let gwLobbyChannel = null;
+let gwPresenceChannel = null;
+let gwTimerHandle = null;
 
-  const gwState = {
-    suspects: [],
-    targetId: null,
-    round: 1,
-    wins: 0,
-    tracesLeft: GW_TRACE_LIMIT,
-    askedTraits: new Set(),
-    gameOver: false,
-  };
+function gwSound(name){ if(window.AwalSounds) AwalSounds.play(name); }
+function gwEl(id){ return document.getElementById(id); }
 
-  function gwRandomCode(usedCodes){
-    const letters = 'BCDFGHJKLMNPQRSTVWXZ';
-    let code;
-    do {
-      if (Math.random() < 0.3){
-        code = 'AGENT-' + letters[Math.floor(Math.random() * letters.length)];
-      } else {
-        code = 'SUSPECT-' + (Math.floor(Math.random() * 9) + 1);
-      }
-    } while (usedCodes.has(code));
-    usedCodes.add(code);
-    return code;
+/* ============ SETUP ============ */
+
+function gwUpdateTraceLimit(v){ gwCfg.traceLimit = parseInt(v, 10) || 0; }
+function gwUpdateTimeLimit(v){ gwCfg.turnTimeLimit = parseInt(v, 10) || 0; }
+
+function gwShow(which){
+  ['gw-setup', 'gw-room', 'gw-play'].forEach(id => { gwEl(id).style.display = (id === which) ? 'block' : 'none'; });
+}
+
+function gwStartSolo(){
+  gwView.mode = 'solo';
+  gwLoadState(gwNewGameState(['solo'], gwCfg.traceLimit, 0));
+  gwShow('gw-play');
+  gwRender();
+}
+
+function gwLoadState(gs){
+  gwView.gs = gs;
+  if(!gwView.suspects.length || gwView.suspectsSeed !== gs.seed){
+    gwView.suspects = gwSuspectsFromSeed(gs.seed);
+    gwView.suspectsSeed = gs.seed;
+    gwView.prevEliminated = [];
+  }
+}
+
+/* ============ CLASSROOM ROOM ============ */
+
+async function gwCreateRoom(){
+  const errEl = gwEl('gw-setup-error');
+  errEl.style.display = 'none';
+
+  gwView.mode = 'classroom';
+  gwView.students = [];
+  gwShow('gw-room');
+  gwEl('gw-room-code').textContent = '••••••';
+  gwEl('gw-room-link').textContent = 'Creating room…';
+  gwEl('gw-begin-btn').disabled = true;
+  gwRenderRoster();
+
+  let tries = 0;
+  while(!window.LobbySupabase && tries < 40){ await new Promise(r => setTimeout(r, 50)); tries++; }
+  if(!window.LobbySupabase){
+    gwEl('gw-room-link').textContent = 'Lobby client not ready. Please go back and try again.';
+    return;
   }
 
-  function gwGenerateSuspect(id, usedCodes){
-    const isWoman = Math.random() < 0.5;
-    const bald = Math.random() < 0.18;
-    const hairLenBias = isWoman ? 0.7 : 0.35;
-    const hairLength = bald ? null : (Math.random() < hairLenBias ? 'long' : 'short');
-    const hasGreyHair = !bald && Math.random() < 0.28;
-    const hairColor = hasGreyHair ? GW_GREY_HAIR : GW_HAIR_COLORS[Math.floor(Math.random() * GW_HAIR_COLORS.length)];
-    const hasBeard = Math.random() < 0.3;
-    const hasGlasses = Math.random() < 0.3;
-    const hasHat = Math.random() < 0.25;
-    const hasNecklace = Math.random() < 0.25;
-    const skin = GW_SKIN_TONES[Math.floor(Math.random() * GW_SKIN_TONES.length)];
-    const hatColor = GW_HAT_COLORS[Math.floor(Math.random() * GW_HAT_COLORS.length)];
-    const necklaceColor = Math.random() < 0.5 ? '#FFD700' : '#C0C0C0';
-    const apparel = GW_APPAREL[Math.floor(Math.random() * GW_APPAREL.length)];
-
-    return {
-      id, code: gwRandomCode(usedCodes),
-      isWoman, bald, hairLength, hasGreyHair, hairColor,
-      hasBeard, hasGlasses, hasHat, hasNecklace,
-      skin, hatColor, necklaceColor, apparel,
-      eliminated: false,
-    };
+  // Some Supabase tables only accept known values in lobbies.game (check constraint / enum).
+  // Try our own game type first; if the database rejects it, fall back to one it already
+  // accepts. The real game is identified by game_state.game, so the students' page routes correctly either way.
+  let lobby = await window.LobbySupabase.createLobby('system-suspects', gwCfg.turnTimeLimit);
+  if(!lobby){
+    console.warn('[System Suspects] createLobby failed with game="system-suspects":', window.LobbySupabase.lastError, '-- retrying with game="word-association"');
+    lobby = await window.LobbySupabase.createLobby('word-association', gwCfg.turnTimeLimit);
+  }
+  if(!lobby){
+    const why = window.LobbySupabase.lastError ? ' (' + window.LobbySupabase.lastError + ')' : '';
+    gwEl('gw-room-link').textContent = 'Could not create the room' + why + '. Check your connection and try again.';
+    return;
   }
 
-  // Pixel grid: 10 cols x 13 rows, 4 units per cell -> viewBox 0 0 40 52
-  function gwPx(col, row, color, w, h){
-    w = w || 1; h = h || 1;
-    return '<rect x="' + (col * 4) + '" y="' + (row * 4) + '" width="' + (w * 4) + '" height="' + (h * 4) + '" fill="' + color + '"/>';
-  }
+  gwView.lobby = lobby;
+  gwEl('gw-room-code').textContent = lobby.code;
+  gwEl('gw-room-link').textContent = window.location.origin + '/join.html?code=' + lobby.code;
 
-  function gwBuildAvatarSVG(s){
-    let svg = '';
-    // shirt (rows 9-11, tapering wider toward the bottom)
-    svg += gwPx(2, 9, s.apparel.hex, 6, 1);
-    svg += gwPx(1, 10, s.apparel.hex, 8, 1);
-    svg += gwPx(0, 11, s.apparel.hex, 10, 1);
-    // neck
-    svg += gwPx(4, 8, s.skin, 2, 1);
-    // head block
-    svg += gwPx(2, 2, s.skin, 6, 6);
-    // hair (drawn after skin so it overlays the top/side edges)
-    if (!s.bald){
-      svg += gwPx(2, 1, s.hairColor, 6, 1); // top cap
-      const sideRows = s.hairLength === 'long' ? 4 : 1;
-      svg += gwPx(2, 2, s.hairColor, 1, sideRows);
-      svg += gwPx(7, 2, s.hairColor, 1, sideRows);
-    }
-    // eyes
-    svg += gwPx(3, 4, '#1A1A1A', 1, 1);
-    svg += gwPx(6, 4, '#1A1A1A', 1, 1);
-    // glasses (outlined lenses + bridge, drawn over the eyes)
-    if (s.hasGlasses){
-      svg += '<rect x="7" y="14" width="9" height="7" fill="none" stroke="#E4FFFB" stroke-width="1.4"/>';
-      svg += '<rect x="23" y="14" width="9" height="7" fill="none" stroke="#E4FFFB" stroke-width="1.4"/>';
-      svg += gwPx(4, 4, '#E4FFFB', 2, 0.35);
-    }
-    // mouth
-    svg += gwPx(4, 6, '#1A1A1A', 2, 1);
-    // beard (chin row + jaw sides, drawn after mouth)
-    if (s.hasBeard){
-      svg += gwPx(2, 7, s.hairColor, 1, 1);
-      svg += gwPx(7, 7, s.hairColor, 1, 1);
-      svg += gwPx(3, 7, s.hairColor, 4, 1);
-    }
-    // necklace (overlays the neck)
-    if (s.hasNecklace){
-      svg += gwPx(4, 8, s.necklaceColor, 2, 1);
-    }
-    // hat (drawn last, sits on top of hair)
-    if (s.hasHat){
-      svg += gwPx(1, 0, s.hatColor, 8, 1);
-      svg += gwPx(2, 1, s.hatColor, 6, 1);
-    }
-    return '<svg viewBox="0 0 40 52" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">' + svg + '</svg>';
-  }
+  gwPresenceChannel = window.LobbySupabase.watchPresence(lobby.id, gwHandleStudentLeft);
 
-  function gwStartRound(){
-    const usedCodes = new Set();
-    gwState.suspects = [];
-    for (let i = 0; i < GW_GRID_SIZE; i++){
-      gwState.suspects.push(gwGenerateSuspect('gw-s' + i, usedCodes));
+  gwLobbyChannel = window.LobbySupabase.subscribeToLobby(lobby.id, (updated) => {
+    gwView.lobby = updated;
+
+    const prevIds = gwView.students.map(s => s.id);
+    const newIds = (updated.players || []).map(p => p.id);
+    if(newIds.some(id => !prevIds.includes(id))) gwSound('join');
+    else if(prevIds.some(id => !newIds.includes(id))) gwSound('leave');
+
+    gwView.students = (updated.players || []).map(p => ({ id: p.id, name: p.name }));
+
+    if(gwEl('gw-room').style.display !== 'none'){
+      gwRenderRoster();
+    } else if(updated.status === 'playing' && updated.game_state && updated.game_state.seed !== undefined){
+      gwLoadState(updated.game_state);
+      gwRender();
     }
-    gwState.targetId = gwState.suspects[Math.floor(Math.random() * gwState.suspects.length)].id;
-    gwState.tracesLeft = GW_TRACE_LIMIT;
-    gwState.askedTraits = new Set();
-    gwState.gameOver = false;
+  });
+}
 
-    document.getElementById('gw-log').innerHTML = '';
-    document.getElementById('gw-result-win').classList.remove('show');
-    document.getElementById('gw-result-loss').classList.remove('show');
-    document.getElementById('gw-next-btn').style.display = 'none';
-    document.getElementById('gw-target-box').classList.remove('revealed');
-    document.getElementById('gw-target-box').innerHTML = '<svg class="gw-target-silhouette" viewBox="0 0 24 24" fill="rgba(228,255,251,0.15)"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.4 0-9 2.2-9 6v2h18v-2c0-3.8-4.6-6-9-6Z"/></svg>';
-    document.getElementById('gw-target-code').textContent = '???-??';
-    document.getElementById('gw-target-code').classList.remove('revealed');
+function gwCopyRoomLink(){
+  const link = gwEl('gw-room-link').textContent;
+  navigator.clipboard.writeText(link).then(() => {
+    const btn = gwEl('gw-room-copy-btn');
+    const original = btn.textContent;
+    btn.textContent = 'Copied ✓';
+    setTimeout(() => { btn.textContent = original; }, 1600);
+  }).catch(() => {});
+}
 
-    gwRenderQuestionDeck();
-    gwRenderProtocolList();
-    gwRenderGrid();
-    gwUpdateTraceCounter();
-  }
+function gwRenderRoster(){
+  const wrap = gwEl('gw-roster');
+  const count = gwView.students.length;
+  let html = gwView.students.map(s => '<span class="gw-chip">' + gwEsc(s.name) + '</span>').join('');
+  if(!count) html = '<span class="gw-chip empty">Waiting for students…</span>';
+  wrap.innerHTML = html;
 
-  function gwRenderQuestionDeck(){
-    const wrap = document.getElementById('gw-qdeck-buttons');
-    wrap.innerHTML = GW_TRAITS.map(t =>
-      '<button class="gw-qbtn" id="gw-qbtn-' + t.key + '" onclick="gwAskTrait(\'' + t.key + '\')">[' + t.label + ']</button>'
+  const btn = gwEl('gw-begin-btn');
+  btn.disabled = count < 1;
+  btn.textContent = count < 1
+    ? '▶ Need at least 1 student (0 joined)'
+    : '▶ Begin case (' + count + ' student' + (count === 1 ? '' : 's') + ' joined)';
+}
+
+function gwEsc(str){
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function gwHandleStudentLeft(playerId){
+  setTimeout(async () => {
+    const lobby = gwView.lobby;
+    if(!lobby || !window.LobbySupabase || lobby.status !== 'waiting') return;
+    if(window.LobbySupabase.isPresent(gwPresenceChannel, playerId)) return;
+    await window.LobbySupabase.leaveLobby(lobby.id, playerId);
+  }, 4000);
+}
+
+async function gwBeginRound(){
+  if(!gwView.lobby || gwView.students.length < 1) return;
+
+  const order = gwView.students.map(s => s.id);
+  const gs = gwNewGameState(order, gwCfg.traceLimit, gwCfg.turnTimeLimit);
+
+  const started = await window.LobbySupabase.startWordAssociationGame(gwView.lobby.id, gs, gwCfg.turnTimeLimit);
+  if(started) gwView.lobby = started;
+
+  gwLoadState(gs);
+  gwShow('gw-play');
+  gwRender();
+}
+
+/* ============ RENDER ============ */
+
+function gwNameFor(id){
+  const s = gwView.students.find(x => x.id === id);
+  return s ? s.name : 'Player';
+}
+
+function gwRender(){
+  const gs = gwView.gs;
+  if(!gs) return;
+  const solo = gwView.mode === 'solo';
+  const target = gwView.suspects[gs.targetIndex];
+
+  // turn bar
+  const turnEl = gwEl('gw-turn');
+  if(gs.ended) turnEl.textContent = gs.result === 'win' ? '✓ CASE CLOSED' : '✕ CASE FAILED';
+  else if(solo) turnEl.textContent = 'YOUR MOVE';
+  else turnEl.textContent = '▶ ' + gwNameFor(gs.order[gs.turnIndex]).toUpperCase() + "'S TURN";
+
+  // question deck: full bank in solo mode, just the asked questions when the class is playing
+  const deck = gwEl('gw-qdeck-buttons');
+  const outOfQs = gwOutOfQuestions(gs);
+  if(solo){
+    gwEl('gw-qdeck-label').textContent = 'ASK A QUESTION';
+    deck.innerHTML = GW_CATEGORIES.map(cat =>
+      '<div class="gw-cat"><span class="gw-cat-label">' + cat.label + '</span>' +
+      GW_QUESTIONS.filter(q => q.cat === cat.id).map(q => {
+        const disabled = gs.askedTraits.includes(q.id) || outOfQs || gs.ended;
+        return '<button class="gw-qbtn" ' + (disabled ? 'disabled ' : '') + 'onclick="gwSoloAsk(\'' + q.id + '\')">[' + q.label + ']</button>';
+      }).join('') + '</div>'
     ).join('');
+  } else {
+    gwEl('gw-qdeck-label').textContent = 'QUESTIONS ASKED BY THE CLASS';
+    deck.innerHTML = '<div class="gw-cat">' + (gs.askedTraits.length
+      ? gs.askedTraits.map(id => '<span class="gw-asked-chip">' + gwFindQuestion(id).label + '</span>').join('')
+      : '<span class="gw-asked-chip" style="border-color:rgba(228,255,251,0.25); color:rgba(228,255,251,0.45);">none yet</span>') + '</div>';
   }
 
-  function gwRenderProtocolList(){
-    const list = document.getElementById('gw-protocol-list');
-    list.innerHTML = GW_TRAITS.map(t =>
-      '<li id="gw-protocol-' + t.key + '" class="pending">[' + t.label + ']</li>'
-    ).join('');
-  }
+  gwEl('gw-protocol-list').innerHTML = gs.askedTraits.length
+    ? gs.askedTraits.map(id => '<li class="pending">[' + gwFindQuestion(id).label + ']</li>').join('')
+    : '<li class="pending">— none yet —</li>';
+  gwEl('gw-traces').textContent = gs.traceLimit > 0 ? gs.tracesLeft : '∞';
 
-  function gwUpdateTraceCounter(){
-    document.getElementById('gw-traces').textContent = gwState.tracesLeft;
-  }
-
-  function gwRenderGrid(){
-    const grid = document.getElementById('gw-grid');
-    grid.innerHTML = gwState.suspects.map(s => (
-      '<div class="gw-card' + (s.eliminated ? ' gw-out' : '') + '" id="' + s.id + '">' +
-        '<div class="gw-avatar-wrap">' + gwBuildAvatarSVG(s) + '</div>' +
-        '<div class="gw-code">' + s.code + '</div>' +
-        '<button class="gw-elim-btn" onclick="gwManualEliminate(\'' + s.id + '\')">ELIMINATE</button>' +
-      '</div>'
-    )).join('');
-  }
-
-  function gwLog(question, answer){
-    const log = document.getElementById('gw-log');
-    const entry = document.createElement('div');
-    entry.className = 'gw-log-entry';
-    entry.innerHTML = '<b>Q:</b> ' + question + '<span class="gw-log-a">A: ' + answer + '</span>';
-    log.appendChild(entry);
-    log.scrollTop = log.scrollHeight;
-  }
-
-  function gwGlitchOut(suspect){
-    suspect.eliminated = true;
-    const el = document.getElementById(suspect.id);
-    if (el){
-      el.classList.add('gw-glitching');
-      setTimeout(() => {
-        el.classList.remove('gw-glitching');
-        el.classList.add('gw-out');
-      }, 350);
-    }
-  }
-
-  function gwAskTrait(key){
-    if (gwState.gameOver || gwState.tracesLeft <= 0 || gwState.askedTraits.has(key)) return;
-
-    const target = gwState.suspects.find(s => s.id === gwState.targetId);
-    const targetHasIt = !!target[key];
-    const trait = GW_TRAITS.find(t => t.key === key);
-
-    gwState.tracesLeft--;
-    gwState.askedTraits.add(key);
-    document.getElementById('gw-qbtn-' + key).disabled = true;
-    document.getElementById('gw-protocol-' + key).classList.remove('pending');
-
-    let eliminatedCount = 0;
-    gwState.suspects.forEach(s => {
-      if (!s.eliminated && s.id !== gwState.targetId && !!s[key] !== targetHasIt){
-        gwGlitchOut(s);
-        eliminatedCount++;
-      }
-    });
-
-    gwLog('Does your suspect have ' + trait.label.toLowerCase() + '?', (targetHasIt ? 'YES' : 'NO') + '. (' + eliminatedCount + ' suspects eliminated)');
-    gwUpdateTraceCounter();
-
-    if (gwState.tracesLeft <= 0){
-      GW_TRAITS.forEach(t => {
-        const btn = document.getElementById('gw-qbtn-' + t.key);
-        if (btn) btn.disabled = true;
+  // grid (animate cards eliminated since the last render)
+  const grid = gwEl('gw-grid');
+  grid.classList.toggle('gw-view-only', !solo);
+  const fresh = gs.eliminated.filter(i => !gwView.prevEliminated.includes(i));
+  grid.innerHTML = gwView.suspects.map((s, i) => {
+    const out = gs.eliminated.includes(i);
+    const glitch = fresh.includes(i);
+    return '<div class="gw-card' + (out && !glitch ? ' gw-out' : '') + (glitch ? ' gw-glitching' : '') + '" id="' + s.id + '">' +
+      '<div class="gw-avatar-wrap">' + gwBuildAvatarSVG(s) + '</div>' +
+      '<div class="gw-code">' + s.code + '</div>' +
+      '<button class="gw-elim-btn" onclick="gwManualEliminate(' + i + ')">ELIMINATE</button>' +
+    '</div>';
+  }).join('');
+  if(fresh.length){
+    setTimeout(() => {
+      fresh.forEach(i => {
+        const el = gwEl(gwView.suspects[i].id);
+        if(el){ el.classList.remove('gw-glitching'); el.classList.add('gw-out'); }
       });
-    }
-
-    setTimeout(gwCheckWin, 380);
+    }, 350);
+    gwSound(gs.result === 'loss' ? 'incorrectAnswer' : 'correctLetter');
   }
+  gwView.prevEliminated = gs.eliminated.slice();
 
-  function gwManualEliminate(id){
-    if (gwState.gameOver) return;
-    const suspect = gwState.suspects.find(s => s.id === id);
-    if (!suspect || suspect.eliminated) return;
+  // log
+  const log = gwEl('gw-log');
+  log.innerHTML = gs.log.map(e =>
+    '<div class="gw-log-entry"><b>Q:</b> ' + gwEsc(e.q) + '<span class="gw-log-a">A: ' + gwEsc(e.a) + '</span></div>'
+  ).join('');
+  log.scrollTop = log.scrollHeight;
 
-    gwGlitchOut(suspect);
-
-    if (id === gwState.targetId){
-      gwEndRound(false);
-      return;
-    }
-    gwCheckWin();
-  }
-
-  function gwCheckWin(){
-    if (gwState.gameOver) return;
-    const active = gwState.suspects.filter(s => !s.eliminated);
-    if (active.length === 1 && active[0].id === gwState.targetId){
-      gwEndRound(true);
-    }
-  }
-
-  function gwEndRound(won){
-    gwState.gameOver = true;
-    GW_TRAITS.forEach(t => {
-      const btn = document.getElementById('gw-qbtn-' + t.key);
-      if (btn) btn.disabled = true;
-    });
-    document.getElementById('gw-next-btn').style.display = 'inline-flex';
-
-    const target = gwState.suspects.find(s => s.id === gwState.targetId);
-    const targetBox = document.getElementById('gw-target-box');
-    targetBox.innerHTML = gwBuildAvatarSVG(target);
-    const codeEl = document.getElementById('gw-target-code');
+  // target profile: hidden until the round ends
+  const box = gwEl('gw-target-box');
+  const codeEl = gwEl('gw-target-code');
+  if(gs.ended){
+    box.innerHTML = gwBuildAvatarSVG(target);
     codeEl.textContent = target.code;
     codeEl.classList.add('revealed');
+  } else {
+    box.innerHTML = '<svg class="gw-target-silhouette" viewBox="0 0 24 24" fill="rgba(228,255,251,0.15)"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.4 0-9 2.2-9 6v2h18v-2c0-3.8-4.6-6-9-6Z"/></svg>';
+    codeEl.textContent = '???-??';
+    codeEl.classList.remove('revealed');
+  }
 
-    if (won){
-      gwState.wins++;
-      document.getElementById('gw-win-code').textContent = target.code;
-      document.getElementById('gw-result-win').classList.add('show');
-      gwLog('Round result', 'TARGET ISOLATED — ' + target.code + ' CONFIRMED');
-    } else {
-      document.getElementById('gw-result-loss').classList.add('show');
-      gwLog('Round result', 'TARGET PURGED IN ERROR');
+  gwEl('gw-win-code').textContent = target.code;
+  gwEl('gw-result-win').classList.toggle('show', gs.ended && gs.result === 'win');
+  gwEl('gw-result-loss').classList.toggle('show', gs.ended && gs.result === 'loss');
+
+  // buttons
+  gwEl('gw-skip-btn').style.display = (!solo && !gs.ended) ? 'inline-flex' : 'none';
+  const nextBtn = gwEl('gw-next-btn');
+  nextBtn.style.display = 'inline-flex';
+  nextBtn.textContent = gs.ended ? (solo ? '↻ New Round' : '↻ Finish & set up a new case') : (solo ? '↻ New Round' : '■ End case');
+
+  gwStartTimer();
+}
+
+/* ============ TURN TIMER (classroom) ============ */
+
+function gwStopTimer(){ if(gwTimerHandle){ clearInterval(gwTimerHandle); gwTimerHandle = null; } }
+
+function gwStartTimer(){
+  gwStopTimer();
+  const timerEl = gwEl('gw-timer');
+  const gs = gwView.gs;
+  const lobby = gwView.lobby;
+
+  if(gwView.mode !== 'classroom' || !lobby || gs.ended){ timerEl.textContent = ''; return; }
+
+  const limit = Number(lobby.time_limit || gs.turnTimeLimit || 0);
+  const startedAt = lobby.round_started_at;
+  if(!limit || !startedAt){ timerEl.textContent = 'No time limit'; timerEl.classList.remove('hot'); return; }
+
+  let handled = false;
+  const tick = () => {
+    const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+    const remaining = Math.max(0, limit - elapsed);
+    timerEl.textContent = '⏱ ' + Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0');
+    timerEl.classList.toggle('hot', remaining <= 5);
+    if(remaining <= 0 && !handled){
+      handled = true;
+      gwStopTimer();
+      gwSkipTurn(true);
     }
+  };
+  tick();
+  gwTimerHandle = setInterval(tick, 250);
+}
+
+/* ============ ACTIONS ============ */
+
+function gwSoloAsk(key){
+  if(gwView.mode !== 'solo') return;
+  gwLoadState(gwApply(gwView.gs, gwView.suspects, { type: 'ask', key }));
+  gwRender();
+}
+
+function gwManualEliminate(index){
+  if(gwView.mode !== 'solo') return; // in class, students make the moves
+  gwLoadState(gwApply(gwView.gs, gwView.suspects, { type: 'eliminate', index }));
+  gwRender();
+}
+
+async function gwSkipTurn(auto){
+  if(gwView.mode !== 'classroom' || !gwView.lobby || gwView.gs.ended) return;
+
+  const expectedTurn = gwView.gs.turnIndex;
+  const expectedLog = gwView.gs.log.length;
+
+  const updated = await window.LobbySupabase.updateGameState(gwView.lobby.id, (s) => {
+    if(s.ended) return s;
+    // someone already moved while we were waiting -> don't skip an extra player
+    if(s.turnIndex !== expectedTurn || (s.log || []).length !== expectedLog) return s;
+    const name = gwNameFor((s.order || [])[s.turnIndex]);
+    return gwApply(s, gwView.suspects, { type: 'skip', playerName: name });
+  });
+
+  if(updated){
+    gwView.lobby = updated;
+    gwLoadState(updated.game_state);
+    gwSound(auto ? 'incorrectAnswer' : 'leave');
+    gwRender();
   }
+}
 
-  function gwNextRound(){
-    gwState.round++;
-    gwStartRound();
+async function gwNextRound(){
+  if(gwView.mode === 'solo'){
+    gwLoadState(gwNewGameState(['solo'], gwCfg.traceLimit, 0));
+    gwRender();
+    return;
   }
-
-  function gwResetGame(){
-    gwState.round = 1;
-    gwState.wins = 0;
-    gwStartRound();
+  // classroom: close this room, back to setup for a fresh case
+  gwStopTimer();
+  if(gwView.lobby && window.LobbySupabase){
+    await window.LobbySupabase.endWordAssociationGame(gwView.lobby.id);
   }
+  gwResetToSetup();
+}
 
+function gwResetToSetup(){
+  gwStopTimer();
+  if(window.LobbySupabase){
+    if(gwLobbyChannel){ window.LobbySupabase.unsubscribe(gwLobbyChannel); gwLobbyChannel = null; }
+    if(gwPresenceChannel){ window.LobbySupabase.unsubscribe(gwPresenceChannel); gwPresenceChannel = null; }
+  }
+  gwView.lobby = null;
+  gwView.gs = null;
+  gwView.mode = null;
+  gwView.students = [];
+  gwView.suspects = [];
+  gwView.prevEliminated = [];
+  gwShow('gw-setup');
+}
 
-
-// This file is only ever loaded on system-suspects.html, so start the first round immediately.
-gwResetGame();
+// Page starts on the setup screen (classroom room or solo practice).
+gwShow('gw-setup');
