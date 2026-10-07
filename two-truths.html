@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Two Truths and One Lie — AWAL Minigames</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .tt-statements{display:flex; flex-direction:column; gap:12px; max-width:680px; margin:18px auto 0;}
+  .tt-st{display:flex; align-items:flex-start; gap:14px; text-align:left; background:#fff; border:3px solid var(--ink); border-radius:16px; padding:16px 18px; font-size:19px; font-weight:600; line-height:1.35; transition:background .2s ease, border-color .2s ease, opacity .2s ease;}
+  .tt-n{flex-shrink:0; width:34px; height:34px; border-radius:50%; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-weight:800; font-size:15px;}
+  .tt-tag{margin-left:auto; flex-shrink:0; font-family:'Space Mono',monospace; font-size:12px; font-weight:800; padding:4px 10px; border-radius:999px; align-self:center;}
+  .tt-st.truth{background:#E6F7EA; border-color:#2FA35A;} .tt-st.truth .tt-tag{background:#2FA35A; color:#fff;}
+  .tt-st.lie{background:#FDE7E7; border-color:#E5484D;} .tt-st.lie .tt-tag{background:#E5484D; color:#fff;}
+  .tt-votes{font-family:'Space Mono',monospace; font-size:12px; color:var(--ink-soft); margin-left:8px; align-self:center; flex-shrink:0;}
+  .tt-phase{display:inline-block; font-family:'Space Mono',monospace; font-size:12px; font-weight:800; letter-spacing:0.08em; padding:5px 12px; border-radius:999px; background:var(--chalk-dim); margin-bottom:10px;}
+  .tt-who{font-family:'Bungee'; font-size:28px; margin:2px 0 6px;}
+  .tt-sub{color:var(--ink-soft); font-size:14.5px;}
+  .tt-chips{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:18px 0;}
+  .tt-chip{display:flex; align-items:center; gap:8px; border:2px solid var(--line); border-radius:999px; padding:7px 14px; font-weight:700; font-size:14px; background:#fff;}
+  .tt-chip.done{border-color:#2FA35A; background:#E6F7EA;}
+  .tt-chip .tt-mark{font-family:'Space Mono',monospace;}
+  .tt-reveal-note{margin-top:16px; font-size:15px; font-weight:600;}
+  .tt-timer{font-family:'Space Mono',monospace; font-weight:800; font-size:16px; color:var(--ink-soft);}
+  .tt-timer.hot{color:var(--wa-hot);}
+</style>
+</head>
+<body>
+<header>
+  <nav>
+    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;" onmouseenter="showGamesDrop()" onmouseleave="scheduleHideGamesDrop()"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL<span class="cb-logo-badge" onclick="event.preventDefault(); event.stopPropagation(); window.location.href='games.html';">MINIGAMES</span></a>
+    <div class="nav-links">
+      <a href="index.html#how">How it works</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="about.html">About</a>
+      <a href="index.html#faq">FAQ</a>
+    </div>
+    <a href="login.html" class="btn btn-primary" style="text-decoration:none;">Start Free</a>
+  </nav>
+
+  <div class="games-drop" id="games-drop" onmouseenter="cancelHideGamesDrop()" onmouseleave="scheduleHideGamesDrop()">
+    <div class="games-drop-track" id="games-drop-track"></div>
+  </div>
+</header>
+
+<div id="page-two-truths" class="page">
+  <div class="wa-world">
+    <div class="wa-banner">
+      <div class="wrap wa-banner-inner">
+        <a href="games.html" class="wa-back">← Game Library</a>
+        <span class="wa-badge">BETA</span>
+        <div class="wa-title-block">
+          <div class="wa-link-icon">🤥</div>
+          <h1 class="wa-title">TWO TRUTHS AND ONE LIE</h1>
+          <p class="wa-tagline">Spot the fib — and practise asking great follow-up questions.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="hangman-shell">
+
+        <!-- SETUP -->
+        <div id="tt-setup" class="wa-panel">
+          <div class="wa-setup-head">
+            <h2 style="font-size:24px; margin-bottom:6px;">Set up your game</h2>
+            <p style="color:var(--ink-soft); font-size:14.5px;">Students each write two truths and one lie about themselves. Then the class asks follow-up questions out loud and votes on the lie.</p>
+          </div>
+
+          <div class="field" style="max-width:340px;">
+            <label>Question time per student</label>
+            <select id="tt-discuss" onchange="ttUpdateDiscuss(this.value)" style="width:100%; padding:12px 14px; border-radius:12px; border:3px solid var(--ink); font-family:'Space Grotesk'; font-size:14.5px; background:white;">
+              <option value="0" selected>No time limit (I'll open voting)</option>
+              <option value="45">45 seconds</option>
+              <option value="60">1 minute</option>
+              <option value="90">90 seconds</option>
+              <option value="120">2 minutes</option>
+              <option value="180">3 minutes</option>
+            </select>
+          </div>
+
+          <button class="btn btn-primary btn-block" style="margin-top:24px;" onclick="ttCreateRoom()">🤥 Create classroom room</button>
+          <p id="tt-setup-error" style="color:var(--wa-hot); font-size:13.5px; margin-top:10px; text-align:center; display:none;"></p>
+        </div>
+
+        <!-- ROOM -->
+        <div id="tt-room" class="wa-panel" style="display:none;">
+          <div style="text-align:center; margin-bottom:24px;">
+            <h2 style="font-size:22px; margin-bottom:6px;">Your classroom room is live</h2>
+            <p style="color:var(--ink-soft); font-size:14px;">Share the code or link. When everyone has joined, start the game and students write their statements.</p>
+          </div>
+
+          <div class="code-box" style="max-width:320px; margin:0 auto 20px;">
+            <div class="cb-label">Room code</div>
+            <div class="cb-code" id="tt-room-code">0000</div>
+          </div>
+
+          <div class="copy-field-label" style="text-align:center;">Player link</div>
+          <div class="copy-field" style="max-width:420px; margin:0 auto 24px;">
+            <span id="tt-room-link" class="mono">...</span>
+            <button onclick="ttCopyRoomLink()" id="tt-room-copy-btn">Copy</button>
+          </div>
+
+          <div id="tt-roster" class="hg-roster"></div>
+
+          <p style="text-align:center; font-size:12.5px; color:var(--ink-soft); margin:16px 0 4px;">Two Truths needs at least 2 students.</p>
+          <button class="btn btn-primary btn-block" style="margin-top:16px;" onclick="ttBegin()" id="tt-begin-btn" disabled>▶ Start (0 students joined)</button>
+        </div>
+
+        <!-- PLAY -->
+        <div id="tt-play" class="wa-panel" style="display:none; text-align:center;">
+
+          <!-- writing -->
+          <div id="tt-sec-writing">
+            <span class="tt-phase">✍️ STUDENTS ARE WRITING</span>
+            <h2 style="font-size:24px; margin-bottom:6px;">Write 2 truths and 1 lie about yourself</h2>
+            <p class="tt-sub">Students are typing on their own devices. Start when most are done.</p>
+            <div id="tt-write-chips" class="tt-chips"></div>
+            <button class="btn btn-primary" onclick="ttStartRound()" id="tt-start-btn" disabled>▶ Start the first round</button>
+          </div>
+
+          <!-- questions / voting / reveal -->
+          <div id="tt-sec-story" style="display:none;">
+            <span class="tt-phase" id="tt-phase-label">❓ ASK QUESTIONS</span>
+            <div class="tt-who" id="tt-who">–</div>
+            <p class="tt-sub" id="tt-instruction">–</p>
+            <div class="tt-timer" id="tt-timer" style="margin-top:8px;"></div>
+
+            <div class="tt-statements" id="tt-statements"></div>
+            <p class="tt-reveal-note" id="tt-note"></p>
+
+            <div style="margin-top:22px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+              <button class="btn btn-primary" id="tt-main-btn" onclick="ttMainAction()">–</button>
+            </div>
+
+            <div style="max-width:420px; margin:28px auto 0; text-align:left;">
+              <div class="wa-panel-label">Scoreboard</div>
+              <div id="tt-scoreboard" class="wa-scoreboard"></div>
+            </div>
+          </div>
+
+          <!-- final -->
+          <div id="tt-sec-final" style="display:none;">
+            <div style="font-size:44px; margin-bottom:6px;">🏆</div>
+            <h2 style="font-size:26px; margin-bottom:10px;">Game over!</h2>
+            <p class="tt-sub" id="tt-final-line" style="margin-bottom:20px;"></p>
+            <div id="tt-final-board" class="wa-scoreboard" style="max-width:360px; margin:0 auto 28px; text-align:left;"></div>
+            <button class="btn btn-primary" onclick="ttPlayAgain()">🔁 Play again</button>
+          </div>
+
+          <div style="margin-top:22px;">
+            <button class="btn btn-ghost btn-sm" onclick="ttEndEarly()" id="tt-end-btn">■ End game</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; width:100%;">
+    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL</a>
+    <div>© 2026 AWAL. Made for teachers who'd rather listen than lecture.</div>
+  </div>
+</footer>
+
+<script src="sounds.js"></script>
+<script type="module" src="lobby.js"></script>
+<script src="main.js"></script>
+<script src="two-truths-core.js"></script>
+<script src="two-truths.js"></script>
+</body>
+</html>
