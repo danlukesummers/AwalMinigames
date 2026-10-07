@@ -125,6 +125,12 @@
       <div id="wa-join-chain" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;"></div>
     </div>
 
+    <!-- STEP 3d: live play -- Two Truths and One Lie (phase-based; state lives in game_state) -->
+    <div id="join-tt-play-step" style="display:none;">
+      <div id="join-tt-body"></div>
+      <p class="mono" style="margin-top:14px; text-align:center; font-size:12.5px; color:var(--ink-soft);">Your score: <strong id="join-tt-score">0</strong></p>
+    </div>
+
     <!-- STEP 3c: live play -- System Suspects (turn-based, shared board) -->
     <div id="join-gw-play-step" style="display:none; text-align:left;">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
@@ -234,6 +240,28 @@
     font-size:min(1.5rem, calc(55cqw / var(--n, 8)));
   }
 
+  /* Two Truths and One Lie (student view) */
+  #join-tt-play-step{text-align:left;}
+  #join-tt-play-step .tt-phase{display:inline-block; font-family:'Space Mono',monospace; font-size:11px; font-weight:800; letter-spacing:0.08em; padding:5px 12px; border-radius:999px; background:var(--chalk-dim); margin-bottom:10px;}
+  #join-tt-play-step .tt-title{font-family:'Bungee'; font-size:20px; margin:2px 0 6px;}
+  #join-tt-play-step .tt-sub{color:var(--ink-soft); font-size:13.5px; margin-bottom:12px;}
+  #join-tt-play-step .tt-st, #join-tt-play-step .tt-pick{display:flex; align-items:flex-start; gap:12px; width:100%; text-align:left; background:#fff; border:3px solid var(--ink); border-radius:14px; padding:13px 14px; font-family:'Space Grotesk'; font-size:15.5px; font-weight:600; line-height:1.35; margin-bottom:10px; color:var(--ink);}
+  #join-tt-play-step .tt-pick{cursor:pointer;}
+  #join-tt-play-step .tt-pick.selected{background:#FFF4C2; border-color:#E2B100; box-shadow:0 0 0 3px rgba(226,177,0,0.25);}
+  #join-tt-play-step .tt-n{flex-shrink:0; width:30px; height:30px; border-radius:50%; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-weight:800; font-size:14px;}
+  #join-tt-play-step .tt-tag{margin-left:auto; flex-shrink:0; font-family:'Space Mono',monospace; font-size:11px; font-weight:800; padding:4px 9px; border-radius:999px; align-self:center;}
+  #join-tt-play-step .tt-st.truth{background:#E6F7EA; border-color:#2FA35A;} #join-tt-play-step .tt-st.truth .tt-tag{background:#2FA35A; color:#fff;}
+  #join-tt-play-step .tt-st.lie{background:#FDE7E7; border-color:#E5484D;} #join-tt-play-step .tt-st.lie .tt-tag{background:#E5484D; color:#fff;}
+  #join-tt-play-step .tt-st.mine-lie{border-color:#E5484D; border-style:dashed;}
+  #join-tt-play-step .tt-input-row{display:flex; gap:8px; align-items:center; margin-bottom:10px;}
+  #join-tt-play-step .tt-input-row input[type=text]{flex:1; min-width:0; padding:12px 14px; border-radius:12px; border:3px solid var(--ink); font-family:'Space Grotesk'; font-size:15px; background:#fff; color:var(--ink);}
+  #join-tt-play-step .tt-lie-label{flex-shrink:0; display:flex; flex-direction:column; align-items:center; font-family:'Space Mono',monospace; font-size:10px; font-weight:800; color:#E5484D; gap:2px; cursor:pointer;}
+  #join-tt-play-step .tt-lie-label input{width:20px; height:20px; accent-color:#E5484D;}
+  #join-tt-play-step .tt-result{margin-top:14px; padding:14px; border-radius:14px; font-weight:700; text-align:center; font-size:15px;}
+  #join-tt-play-step .tt-result.good{background:#E6F7EA; color:#1d6e3c;}
+  #join-tt-play-step .tt-result.bad{background:#FDE7E7; color:#a52a2f;}
+  #join-tt-play-step .tt-result.info{background:var(--chalk-dim); color:var(--ink);}
+
   /* System Suspects (student view) */
   #join-gw-play-step .gw-board-wrap{background:#050908; border-radius:14px; padding:12px; color:#E4FFFB; font-family:'Space Mono',monospace;}
   #join-gw-play-step .gw-top-row{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
@@ -251,6 +279,7 @@
 <script src="sounds.js"></script>
 <script type="module" src="lobby.js"></script>
 <script src="system-suspects-core.js"></script>
+<script src="two-truths-core.js"></script>
 <script>
   window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
@@ -312,7 +341,7 @@
   }
 
   function hideAllJoinSteps(){
-    ['join-form-step','join-waiting-step','join-play-step','join-wa-play-step','join-gw-play-step','join-waiting-others-step','join-done-step']
+    ['join-form-step','join-waiting-step','join-play-step','join-wa-play-step','join-gw-play-step','join-tt-play-step','join-waiting-others-step','join-done-step']
       .forEach(id => document.getElementById(id).style.display = 'none');
   }
 
@@ -714,6 +743,161 @@
     }
   }
 
+  /* ============ live game state (Two Truths and One Lie) ============ */
+  let ttJoinKey = null;       // which "screen" is currently drawn (so typing isn't wiped by realtime updates)
+  let ttJoinEditing = false;
+  let ttJoinBusy = false;
+
+  function ttJoinEsc(str){
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function ttJoinRender(lobby){
+    const gs = lobby.game_state;
+    const me = joinPlayer.id;
+    const body = document.getElementById('join-tt-body');
+    const nameOf = (id) => (gs.names && gs.names[id]) || 'a classmate';
+
+    document.getElementById('join-tt-score').textContent = (gs.scores && gs.scores[me]) || 0;
+
+    // ---- writing ----
+    if(gs.phase === 'writing'){
+      const mine = gs.submissions && gs.submissions[me];
+      const showForm = !mine || ttJoinEditing;
+      const key = 'writing:' + (showForm ? 'form' : 'done');
+      if(key !== ttJoinKey){
+        ttJoinKey = key;
+        if(showForm){
+          const pre = mine || { texts: ['', '', ''], lie: -1 };
+          body.innerHTML =
+            '<span class="tt-phase">✍️ YOUR TURN TO WRITE</span>' +
+            '<div class="tt-title">2 truths + 1 lie</div>' +
+            '<p class="tt-sub">Write three things about yourself. Tick the box next to the one that is the <strong>lie</strong>. Make it hard to guess!</p>' +
+            [0, 1, 2].map(i =>
+              '<div class="tt-input-row"><label class="tt-lie-label"><input type="radio" name="tt-lie" value="' + i + '"' + (pre.lie === i ? ' checked' : '') + '>LIE</label>' +
+              '<input type="text" id="tt-in-' + i + '" maxlength="' + TT_MAX_LEN + '" placeholder="Statement ' + (i + 1) + '" autocomplete="off" value="' + ttJoinEsc(pre.texts[i]) + '"></div>'
+            ).join('') +
+            '<p id="tt-join-err" style="color:#E5484D; font-size:13px; margin:4px 0 8px; display:none;"></p>' +
+            '<button class="btn btn-primary btn-block" id="tt-join-submit" onclick="ttJoinSubmit()">Submit my statements</button>';
+        } else {
+          body.innerHTML =
+            '<span class="tt-phase">✓ SUBMITTED</span>' +
+            '<div class="tt-title">You\'re all set!</div>' +
+            '<p class="tt-sub">Waiting for the others… <strong id="tt-join-ready"></strong></p>' +
+            '<button class="btn btn-ghost btn-sm" onclick="ttJoinEdit()">✏️ Edit my statements</button>';
+        }
+      }
+      const ready = document.getElementById('tt-join-ready');
+      if(ready) ready.textContent = '(' + Object.keys(gs.submissions || {}).length + ' of ' + Object.keys(gs.names).length + ' ready)';
+      return;
+    }
+
+    ttJoinEditing = false;
+
+    // ---- final ----
+    if(gs.phase === 'final'){
+      const key = 'final:' + JSON.stringify(gs.scores);
+      if(key === ttJoinKey) return;
+      ttJoinKey = key;
+      const board = ttLeaderboard(gs);
+      const rank = board.findIndex(p => p.id === me) + 1;
+      body.innerHTML =
+        '<span class="tt-phase">🏆 GAME OVER</span>' +
+        '<div class="tt-title">' + (rank === 1 ? 'You won! 🎉' : 'You finished #' + rank) + '</div>' +
+        '<div class="wa-scoreboard" style="margin-top:12px;">' + board.map((p, i) =>
+          '<div class="wa-score-row"><span class="wa-score-name">' + (i + 1) + '. ' + ttJoinEsc(p.name) + (p.id === me ? ' (you)' : '') + '</span><span class="wa-score-num">' + p.score + '</span></div>'
+        ).join('') + '</div>';
+      return;
+    }
+
+    // ---- questions / voting / reveal ----
+    const st = gs.order[gs.current];
+    const iAmStoryteller = st === me;
+    const myVote = gs.votes ? gs.votes[me] : undefined;
+    const voters = Object.keys(gs.names).filter(id => id !== st);
+    const voted = voters.filter(id => gs.votes && gs.votes[id] !== undefined).length;
+    const d = gs.display;
+
+    const key = [gs.phase, gs.current, myVote, iAmStoryteller ? voted : '', (gs.results || []).length].join(':');
+    if(key === ttJoinKey) return;
+    ttJoinKey = key;
+
+    let html = '';
+    if(gs.phase === 'questions'){
+      html += '<span class="tt-phase">❓ QUESTION TIME</span>';
+      if(iAmStoryteller){
+        html += '<div class="tt-title">It\'s your turn!</div><p class="tt-sub">Everyone will ask you follow-up questions out loud. Answer so they can\'t tell which one is your lie.</p>';
+        html += d.texts.map((t, i) => '<div class="tt-st' + (i === d.lie ? ' mine-lie' : '') + '"><span class="tt-n">' + (i + 1) + '</span><span>' + ttJoinEsc(t) + '</span>' + (i === d.lie ? '<span class="tt-tag" style="background:#E5484D;color:#fff;">YOUR LIE</span>' : '') + '</div>').join('');
+      } else {
+        html += '<div class="tt-title">' + ttJoinEsc(nameOf(st)) + '\'s statements</div><p class="tt-sub">Ask follow-up questions out loud. Which one is the lie?</p>';
+        html += d.texts.map((t, i) => '<div class="tt-st"><span class="tt-n">' + (i + 1) + '</span><span>' + ttJoinEsc(t) + '</span></div>').join('');
+      }
+    } else if(gs.phase === 'voting'){
+      html += '<span class="tt-phase">🗳 VOTE</span>';
+      if(iAmStoryteller){
+        html += '<div class="tt-title">Votes are coming in…</div><p class="tt-sub">' + voted + ' of ' + voters.length + ' have voted.</p>';
+        html += d.texts.map((t, i) => '<div class="tt-st' + (i === d.lie ? ' mine-lie' : '') + '"><span class="tt-n">' + (i + 1) + '</span><span>' + ttJoinEsc(t) + '</span></div>').join('');
+      } else {
+        html += '<div class="tt-title">Which one is the lie?</div><p class="tt-sub">Tap a statement to vote. You can change your vote until the reveal.</p>';
+        html += d.texts.map((t, i) => '<button class="tt-pick' + (myVote === i ? ' selected' : '') + '" onclick="ttJoinVote(' + i + ')"><span class="tt-n">' + (i + 1) + '</span><span>' + ttJoinEsc(t) + '</span></button>').join('');
+        if(myVote !== undefined) html += '<div class="tt-result info">Vote locked in ✓ — waiting for the reveal</div>';
+      }
+    } else if(gs.phase === 'reveal'){
+      const r = gs.results[gs.results.length - 1];
+      html += '<span class="tt-phase">🎭 THE REVEAL</span><div class="tt-title">Statement ' + (d.lie + 1) + ' was the lie!</div>';
+      html += d.texts.map((t, i) => '<div class="tt-st ' + (i === d.lie ? 'lie' : 'truth') + '"><span class="tt-n">' + (i + 1) + '</span><span>' + ttJoinEsc(t) + '</span><span class="tt-tag">' + (i === d.lie ? '✗ LIE' : '✓ TRUE') + '</span></div>').join('');
+      if(iAmStoryteller){
+        html += '<div class="tt-result ' + (r.fooled.length ? 'good' : 'info') + '">You fooled ' + r.fooled.length + ' classmate' + (r.fooled.length === 1 ? '' : 's') + (r.fooled.length ? ' (+' + r.fooled.length + ')' : '') + '</div>';
+      } else if(r.correct.includes(me)){
+        html += '<div class="tt-result good">🎯 You spotted the lie! +1</div>';
+      } else if(r.fooled.includes(me)){
+        html += '<div class="tt-result bad">😅 You were fooled by ' + ttJoinEsc(nameOf(st)) + '!</div>';
+      } else {
+        html += '<div class="tt-result info">You didn\'t vote this round.</div>';
+      }
+      html += '<p class="tt-sub" style="margin-top:12px; text-align:center;">Waiting for the next round…</p>';
+    }
+    body.innerHTML = html;
+  }
+
+  async function ttJoinAct(action){
+    if(ttJoinBusy || !joinLobbyRow) return null;
+    ttJoinBusy = true;
+    const updated = await window.LobbySupabase.updateGameState(joinLobbyRow.id, (s) => {
+      return ttApply(s, { ...action, playerId: joinPlayer.id });
+    });
+    ttJoinBusy = false;
+    if(updated){ joinLobbyRow = updated; ttJoinRender(updated); }
+    return updated;
+  }
+
+  async function ttJoinSubmit(){
+    const err = document.getElementById('tt-join-err');
+    const texts = [0, 1, 2].map(i => (document.getElementById('tt-in-' + i).value || '').trim());
+    const lieEl = document.querySelector('input[name="tt-lie"]:checked');
+    err.style.display = 'none';
+    if(texts.some(t => !t)){ err.textContent = 'Please fill in all three statements.'; err.style.display = 'block'; return; }
+    if(!lieEl){ err.textContent = 'Tick the box next to the statement that is the lie.'; err.style.display = 'block'; return; }
+
+    const btn = document.getElementById('tt-join-submit');
+    if(btn) btn.disabled = true;
+    ttJoinEditing = false;
+    const updated = await ttJoinAct({ type: 'submit', texts, lie: Number(lieEl.value) });
+    if(updated) AwalSounds.play('correctLetter');
+    else if(btn) btn.disabled = false;
+  }
+
+  function ttJoinEdit(){
+    ttJoinEditing = true;
+    ttJoinKey = null;
+    ttJoinRender(joinLobbyRow);
+  }
+
+  async function ttJoinVote(index){
+    const updated = await ttJoinAct({ type: 'vote', index });
+    if(updated) AwalSounds.play('correctLetter');
+  }
+
   /* ============ live game state (System Suspects) ============ */
   let gwJoinSuspects = [];
   let gwJoinSeed = null;
@@ -962,6 +1146,25 @@
       // guessing UI at all.
       const gwMarked = updatedLobby.game === 'system-suspects' ||
         (updatedLobby.game_state && updatedLobby.game_state.game === 'system-suspects');
+
+      const ttMarked = updatedLobby.game === 'two-truths' ||
+        (updatedLobby.game_state && updatedLobby.game_state.game === 'two-truths');
+
+      // Two Truths and One Lie: phase-based (writing -> questions -> voting -> reveal -> final).
+      if(ttMarked){
+        const ttState = updatedLobby.game_state;
+        if(!ttState || ttState.phase === undefined){
+          if(updatedLobby.status === 'completed'){
+            hideAllJoinSteps();
+            document.getElementById('join-done-step').style.display = 'block';
+          }
+          return;
+        }
+        hideAllJoinSteps();
+        document.getElementById('join-tt-play-step').style.display = 'block';
+        ttJoinRender(updatedLobby);
+        return;
+      }
 
       if(!gwMarked && updatedLobby.game === 'word-association'){
         if(updatedLobby.status === 'completed'){
