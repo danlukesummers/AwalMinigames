@@ -1,41 +1,62 @@
 /* AWAL Minigames -- Two Truths and One Lie (teacher side). Only loaded on two-truths.html.
-   Depends on two-truths-core.js (rules).  The teacher hosts: students write and vote on their
-   own devices; the teacher's screen is the projected "stage" that moves the game along. */
+   Depends on two-truths-core.js (rules + shared player UI).
 
-const ttCfg = { discussSeconds: 0 };
+   The teacher can HOST (class mode / watching a student duel) or PLAY (head to head: "me vs a student").
+   When the teacher plays, they get exactly the same screens as a student on this page. */
 
-const ttView = {
-  gs: null,        // current game_state
-  lobby: null,
-  students: [],    // [{id, name, color}]
-  busy: false
+const ttCfg = {
+  mode: 'class',          // 'class' | 'duel'
+  input: 'written',       // 'written' | 'spoken'
+  speechLang: 'en-US',
+  duelType: 'teacher',    // 'teacher' (me vs a student) | 'students' (student vs student)
+  duelA: '',
+  duelB: ''
 };
+
+const ttView = { gs: null, lobby: null, students: [], busy: false };
 
 let ttLobbyChannel = null;
 let ttPresenceChannel = null;
-let ttTimerHandle = null;
 
 function ttSound(name){ if(window.AwalSounds) AwalSounds.play(name); }
 function ttEl(id){ return document.getElementById(id); }
-function ttEsc(str){
-  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ============ SETUP ============ */
+
+function ttSetActive(onId, offId){ ttEl(onId).classList.add('active'); ttEl(offId).classList.remove('active'); }
+
+function ttSetMode(m){
+  ttCfg.mode = m;
+  ttSetActive(m === 'class' ? 'tt-mode-class' : 'tt-mode-duel', m === 'class' ? 'tt-mode-duel' : 'tt-mode-class');
+  ttEl('tt-mode-hint').textContent = m === 'class'
+    ? 'Every student takes a turn in the hot seat. The rest of the class clicks the lie.'
+    : 'Two players. Teacher vs a student, or student vs student. Each tells once and the other clicks the lie.';
 }
 
-/* ============ SETUP + ROOM ============ */
+function ttSetInput(i){
+  ttCfg.input = i;
+  ttSetActive(i === 'written' ? 'tt-input-written' : 'tt-input-spoken', i === 'written' ? 'tt-input-spoken' : 'tt-input-written');
+  ttEl('tt-lang-field').style.display = i === 'spoken' ? 'block' : 'none';
+}
 
-function ttUpdateDiscuss(v){ ttCfg.discussSeconds = parseInt(v, 10) || 0; }
+function ttSetLang(v){ ttCfg.speechLang = v; }
 
 function ttShow(which){
-  ['tt-setup', 'tt-room', 'tt-play'].forEach(id => { ttEl(id).style.display = (id === which) ? 'block' : 'none'; });
+  ttEl('tt-setup-wrap').style.display = which === 'setup' ? 'block' : 'none';
+  ttEl('tt-room-wrap').style.display = which === 'room' ? 'block' : 'none';
+  ttEl('tt-play').style.display = which === 'play' ? 'block' : 'none';
 }
+
+/* ============ ROOM ============ */
 
 async function ttCreateRoom(){
   ttEl('tt-setup-error').style.display = 'none';
   ttView.students = [];
-  ttShow('tt-room');
+  ttShow('room');
   ttEl('tt-room-code').textContent = '••••';
   ttEl('tt-room-link').textContent = 'Creating room…';
   ttEl('tt-begin-btn').disabled = true;
+  ttEl('tt-duel-box').style.display = ttCfg.mode === 'duel' ? 'block' : 'none';
   ttRenderRoster();
 
   let tries = 0;
@@ -74,7 +95,7 @@ async function ttCreateRoom(){
 
     ttView.students = (updated.players || []).map(p => ({ id: p.id, name: p.name, color: p.color }));
 
-    if(ttEl('tt-room').style.display !== 'none'){
+    if(ttEl('tt-room-wrap').style.display !== 'none'){
       ttRenderRoster();
     } else if(updated.status === 'playing' && updated.game_state && updated.game_state.game === 'two-truths'){
       ttView.gs = updated.game_state;
@@ -92,28 +113,6 @@ function ttCopyRoomLink(){
   }).catch(() => {});
 }
 
-function ttRenderRoster(){
-  const count = ttView.students.length;
-  let html = '';
-  const seats = Math.max(4, count);
-  for(let i = 0; i < seats; i++){
-    const st = ttView.students[i];
-    if(st){
-      html += '<div class="wa-seat filled"><div class="wa-seat-avatar" style="background:' + (st.color || '#888') + ';">' +
-        ttEsc((st.name || '?').charAt(0).toUpperCase()) + '</div><div class="wa-seat-name">' + ttEsc(st.name) + '</div></div>';
-    } else {
-      html += '<div class="wa-seat"><div class="wa-seat-name" style="opacity:0.6;">Waiting for a player…</div></div>';
-    }
-  }
-  ttEl('tt-roster').innerHTML = html;
-
-  const btn = ttEl('tt-begin-btn');
-  btn.disabled = count < 2;
-  btn.textContent = count < 2
-    ? '▶ Need at least 2 students (' + count + ' joined)'
-    : '▶ Start (' + count + ' students joined)';
-}
-
 function ttHandleStudentLeft(playerId){
   setTimeout(async () => {
     const lobby = ttView.lobby;
@@ -123,150 +122,162 @@ function ttHandleStudentLeft(playerId){
   }, 4000);
 }
 
+function ttSetDuelType(t){
+  ttCfg.duelType = t;
+  ttSetActive(t === 'teacher' ? 'tt-duel-teacher' : 'tt-duel-students', t === 'teacher' ? 'tt-duel-students' : 'tt-duel-teacher');
+  ttRenderRoster();
+}
+
+function ttPickPlayer(which, id){
+  if(which === 'A') ttCfg.duelA = id; else ttCfg.duelB = id;
+  ttUpdateBeginBtn();
+}
+
+function ttFillSelect(selId, selected, excludeId){
+  const sel = ttEl(selId);
+  const opts = ['<option value="">— choose a student —</option>'].concat(
+    ttView.students.filter(s => s.id !== excludeId).map(s =>
+      '<option value="' + ttEsc(s.id) + '"' + (s.id === selected ? ' selected' : '') + '>' + ttEsc(s.name) + '</option>')
+  );
+  sel.innerHTML = opts.join('');
+}
+
+function ttRenderRoster(){
+  const count = ttView.students.length;
+  let html = ttView.students.map(st =>
+    '<div class="tt-seat"><div class="tt-seat-av" style="background:' + (st.color || '#888') + ';">' + ttEsc((st.name || '?').charAt(0).toUpperCase()) + '</div>' + ttEsc(st.name) + '</div>'
+  ).join('');
+  if(!count) html = '<div class="tt-seat empty">Waiting for students…</div>';
+  ttEl('tt-roster').innerHTML = html;
+
+  if(ttCfg.mode === 'duel'){
+    // drop picks that left the room
+    if(!ttView.students.some(s => s.id === ttCfg.duelA)) ttCfg.duelA = '';
+    if(!ttView.students.some(s => s.id === ttCfg.duelB)) ttCfg.duelB = '';
+    const studentsVs = ttCfg.duelType === 'students';
+    ttEl('tt-pick-b-wrap').style.display = studentsVs ? 'block' : 'none';
+    ttEl('tt-pick-a-label').textContent = studentsVs ? 'STUDENT 1' : 'STUDENT';
+    ttFillSelect('tt-pick-a', ttCfg.duelA, studentsVs ? ttCfg.duelB : null);
+    if(studentsVs) ttFillSelect('tt-pick-b', ttCfg.duelB, ttCfg.duelA);
+  }
+  ttUpdateBeginBtn();
+}
+
+function ttUpdateBeginBtn(){
+  const btn = ttEl('tt-begin-btn');
+  const count = ttView.students.length;
+  let ok = false, label = '';
+
+  if(ttCfg.mode === 'class'){
+    ok = count >= 2;
+    label = ok ? '▶ Start (' + count + ' students)' : '▶ Need at least 2 students (' + count + ' joined)';
+  } else if(ttCfg.duelType === 'teacher'){
+    ok = !!ttCfg.duelA;
+    label = ok ? '▶ Start: you vs ' + ttStudentName(ttCfg.duelA) : '▶ Choose your opponent';
+  } else {
+    ok = !!ttCfg.duelA && !!ttCfg.duelB && ttCfg.duelA !== ttCfg.duelB;
+    label = ok ? '▶ Start: ' + ttStudentName(ttCfg.duelA) + ' vs ' + ttStudentName(ttCfg.duelB) : '▶ Choose two students';
+  }
+  btn.disabled = !ok;
+  btn.textContent = label;
+}
+
+function ttStudentName(id){
+  const s = ttView.students.find(x => x.id === id);
+  return s ? s.name : 'Student';
+}
+
 async function ttBegin(){
-  if(!ttView.lobby || ttView.students.length < 2) return;
-  const gs = ttNewState(ttView.students.map(s => ({ id: s.id, name: s.name })), ttCfg.discussSeconds);
+  if(!ttView.lobby || ttEl('tt-begin-btn').disabled) return;
+
+  const players = ttView.students.map(s => ({ id: s.id, name: s.name }));
+  let duel = null;
+
+  if(ttCfg.mode === 'duel'){
+    if(ttCfg.duelType === 'teacher'){
+      players.push({ id: TT_TEACHER_ID, name: 'Teacher' });
+      duel = [TT_TEACHER_ID, ttCfg.duelA];
+    } else {
+      duel = [ttCfg.duelA, ttCfg.duelB];
+    }
+  }
+
+  const gs = ttNewState({ mode: ttCfg.mode, input: ttCfg.input, speechLang: ttCfg.speechLang, players, duel });
   const started = await window.LobbySupabase.startWordAssociationGame(ttView.lobby.id, gs, 0);
   if(started) ttView.lobby = started;
   ttView.gs = gs;
-  ttShow('tt-play');
+  ttShow('play');
   ttRender();
 }
 
-/* ============ RENDER ============ */
+/* ============ PLAY ============ */
 
-function ttName(id){ return (ttView.gs.names && ttView.gs.names[id]) || 'Player'; }
 function ttColorOf(id){
   const st = ttView.students.find(s => s.id === id);
-  return (st && st.color) || '#888';
+  return (st && st.color) || '#FFB020';
 }
 
-function ttStatementsHTML(gs, revealed){
-  const display = gs.display;
-  const tally = [0, 0, 0];
-  Object.values(gs.votes || {}).forEach(v => { if(tally[v] !== undefined) tally[v]++; });
-  return display.texts.map((text, i) => {
-    let cls = 'tt-st', tag = '', votes = '';
-    if(revealed){
-      const isLie = i === display.lie;
-      cls += isLie ? ' lie' : ' truth';
-      tag = '<span class="tt-tag">' + (isLie ? '✗ LIE' : '✓ TRUE') + '</span>';
-      votes = '<span class="tt-votes">' + tally[i] + ' vote' + (tally[i] === 1 ? '' : 's') + '</span>';
-    }
-    return '<div class="' + cls + '"><span class="tt-n">' + (i + 1) + '</span><span>' + ttEsc(text) + '</span>' + votes + tag + '</div>';
-  }).join('');
-}
-
-function ttScoreRowsHTML(gs){
-  return ttLeaderboard(gs).map(p =>
-    '<div class="wa-score-row"><span class="wa-score-dot" style="background:' + ttColorOf(p.id) + ';"></span>' +
-    '<span class="wa-score-name">' + ttEsc(p.name) + '</span><span class="wa-score-num">' + p.score + '</span></div>'
-  ).join('');
-}
+// What the teacher can do as a PLAYER (only when they're one of the two duelists).
+const ttHostActions = {
+  submit: (texts, lie) => ttSend({ type: 'submit', playerId: TT_TEACHER_ID, texts, lie }),
+  vote: (index) => ttSend({ type: 'vote', playerId: TT_TEACHER_ID, index }),
+  openVoting: () => ttSend({ type: 'vote_open' }),
+  colorOf: (id) => ttColorOf(id)
+};
 
 function ttRender(){
   const gs = ttView.gs;
   if(!gs) return;
 
-  ttEl('tt-sec-writing').style.display = gs.phase === 'writing' ? 'block' : 'none';
-  ttEl('tt-sec-story').style.display = ['questions', 'voting', 'reveal'].includes(gs.phase) ? 'block' : 'none';
-  ttEl('tt-sec-final').style.display = gs.phase === 'final' ? 'block' : 'none';
-  ttEl('tt-end-btn').style.display = gs.phase === 'final' ? 'none' : 'inline-flex';
+  const me = gs.participants.includes(TT_TEACHER_ID) ? TT_TEACHER_ID : null;
+  ttRenderPlayer(ttEl('tt-stage'), gs, me, ttHostActions);
+  ttRenderHostBar(gs);
+}
+
+function ttRenderHostBar(gs){
+  const main = ttEl('tt-host-main');
+  const sub = ttEl('tt-host-sub');
+  main.style.display = 'inline-flex';
+  main.disabled = false;
+  sub.style.display = 'inline-flex';
+  sub.textContent = '■ End game';
 
   if(gs.phase === 'writing'){
-    const ids = Object.keys(gs.names);
-    ttEl('tt-write-chips').innerHTML = ids.map(id => {
-      const done = !!gs.submissions[id];
-      return '<div class="tt-chip' + (done ? ' done' : '') + '"><span class="tt-mark">' + (done ? '✓' : '…') + '</span>' + ttEsc(gs.names[id]) + '</div>';
-    }).join('');
-    const n = Object.keys(gs.submissions).length;
-    const btn = ttEl('tt-start-btn');
-    btn.disabled = n < 2;
-    btn.textContent = n < 2 ? '▶ Waiting for at least 2 students (' + n + ' ready)' : '▶ Start the first round (' + n + ' ready)';
-    ttStopTimer();
-    return;
-  }
-
-  if(gs.phase === 'final'){
-    ttStopTimer();
-    const board = ttLeaderboard(gs);
-    ttEl('tt-final-board').innerHTML = ttScoreRowsHTML(gs);
-    ttEl('tt-final-line').textContent = board.length ? board[0].name + ' wins with ' + board[0].score + ' point' + (board[0].score === 1 ? '' : 's') + '!' : '';
-    return;
-  }
-
-  // questions / voting / reveal
-  const st = ttStoryteller(gs);
-  const voters = ttVoterIds(gs);
-  const voted = voters.filter(id => gs.votes[id] !== undefined).length;
-  const revealed = gs.phase === 'reveal';
-
-  ttEl('tt-who').textContent = ttName(st) + "'s statements (" + (gs.current + 1) + ' of ' + gs.order.length + ')';
-  ttEl('tt-statements').innerHTML = ttStatementsHTML(gs, revealed);
-  ttEl('tt-scoreboard').innerHTML = ttScoreRowsHTML(gs);
-
-  const label = ttEl('tt-phase-label'), instr = ttEl('tt-instruction'), note = ttEl('tt-note'), mainBtn = ttEl('tt-main-btn');
-  note.textContent = '';
-
-  if(gs.phase === 'questions'){
-    label.textContent = '❓ ASK FOLLOW-UP QUESTIONS';
-    instr.textContent = 'Ask ' + ttName(st) + ' questions out loud, e.g. “When did that happen?” “Who were you with?”';
-    mainBtn.textContent = '🗳 Open voting';
-    mainBtn.disabled = false;
+    const ready = ttReadyToStart(gs);
+    main.textContent = ready ? '▶ Start the interrogation' : (gs.mode === 'duel' ? '⏳ Waiting for both players' : '⏳ Need at least 2 files');
+    main.disabled = !ready;
+  } else if(gs.phase === 'questions'){
+    main.textContent = '⚖️ Open the vote';
   } else if(gs.phase === 'voting'){
-    label.textContent = '🗳 VOTE NOW';
-    instr.textContent = 'Which one is the lie? Vote on your device.';
-    note.textContent = voted + ' / ' + voters.length + ' voted' + (voted === voters.length ? ' — everyone has voted!' : '');
-    mainBtn.textContent = '👀 Reveal the lie';
-    mainBtn.disabled = false;
-  } else {
-    const r = gs.results[gs.results.length - 1];
-    label.textContent = '🎭 THE REVEAL';
-    instr.textContent = 'Statement ' + (gs.display.lie + 1) + ' was the lie!';
-    const names = (ids) => ids.length ? ids.map(ttName).join(', ') : 'nobody';
-    note.innerHTML = '✓ Spotted it: <strong>' + ttEsc(names(r.correct)) + '</strong><br>✗ Fooled: <strong>' + ttEsc(names(r.fooled)) + '</strong>';
-    const last = gs.current + 1 >= gs.order.length;
-    mainBtn.textContent = last ? '🏆 See final results' : '➡ Next student';
-    mainBtn.disabled = false;
+    if(gs.mode === 'duel'){ main.style.display = 'none'; }   // the guesser's click reveals
+    else main.textContent = '👀 Reveal the lie';
+  } else if(gs.phase === 'reveal'){
+    main.textContent = gs.current + 1 >= gs.order.length ? '🏆 Final results' : '➡ Next in the hot seat';
+  } else if(gs.phase === 'final'){
+    main.textContent = '🔁 Play again (same players)';
+    sub.textContent = '✕ Close room';
   }
-
-  ttStartTimer();
 }
 
-/* ============ QUESTION TIMER ============ */
-
-function ttStopTimer(){ if(ttTimerHandle){ clearInterval(ttTimerHandle); ttTimerHandle = null; } }
-
-function ttStartTimer(){
-  ttStopTimer();
-  const el = ttEl('tt-timer');
-  const gs = ttView.gs, lobby = ttView.lobby;
-  el.textContent = '';
-  el.classList.remove('hot');
-
-  if(!gs || gs.phase !== 'questions' || !gs.discussSeconds || !lobby || !lobby.round_started_at) return;
-
-  const limit = gs.discussSeconds;
-  const startedAt = new Date(lobby.round_started_at).getTime();
-  let fired = false;
-
-  const tick = () => {
-    const remaining = Math.max(0, limit - Math.floor((Date.now() - startedAt) / 1000));
-    el.textContent = '⏱ ' + Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0');
-    el.classList.toggle('hot', remaining <= 10);
-    if(remaining <= 0 && !fired){
-      fired = true;
-      ttStopTimer();
-      ttSend({ type: 'vote_open' });   // time's up -> open voting automatically
-    }
-  };
-  tick();
-  ttTimerHandle = setInterval(tick, 250);
+async function ttHostMain(){
+  const gs = ttView.gs;
+  if(!gs) return;
+  if(gs.phase === 'writing') await ttSend({ type: 'start' });
+  else if(gs.phase === 'questions') await ttSend({ type: 'vote_open' });
+  else if(gs.phase === 'voting'){ const u = await ttSend({ type: 'reveal' }); if(u) ttSound('correctAnswer'); }
+  else if(gs.phase === 'reveal') await ttSend({ type: 'next' });
+  else if(gs.phase === 'final') await ttSend({ type: 'again' });
 }
 
-/* ============ ACTIONS ============ */
+async function ttHostSub(){
+  const gs = ttView.gs;
+  if(!gs) return;
+  if(gs.phase === 'final'){ await ttCloseRoom(); return; }
+  if(!window.confirm('End the game now and show the final scores?')) return;
+  await ttSend({ type: 'end' });
+}
 
-// Guarded so a double click (or the timer firing as you click) can't skip a phase.
+// Guarded so a double click can't skip a phase. (Submissions are allowed to interleave.)
 async function ttSend(action){
   if(ttView.busy || !ttView.lobby || !ttView.gs) return null;
   ttView.busy = true;
@@ -274,7 +285,8 @@ async function ttSend(action){
   const expectedCurrent = ttView.gs.current;
 
   const updated = await window.LobbySupabase.updateGameState(ttView.lobby.id, (s) => {
-    if(s.phase !== expectedPhase || s.current !== expectedCurrent) return s;
+    if(s.phase !== expectedPhase) return s;
+    if(action.type !== 'submit' && s.current !== expectedCurrent) return s;
     return ttApply(s, action);
   });
 
@@ -287,28 +299,7 @@ async function ttSend(action){
   return updated;
 }
 
-async function ttStartRound(){
-  const updated = await ttSend({ type: 'start' });
-  if(updated) ttSound('join');
-}
-
-async function ttMainAction(){
-  const phase = ttView.gs.phase;
-  if(phase === 'questions'){ await ttSend({ type: 'vote_open' }); }
-  else if(phase === 'voting'){
-    const updated = await ttSend({ type: 'reveal' });
-    if(updated) ttSound('correctAnswer');
-  }
-  else if(phase === 'reveal'){ await ttSend({ type: 'next' }); }
-}
-
-async function ttEndEarly(){
-  if(!window.confirm('End the game now and show the final scores?')) return;
-  await ttSend({ type: 'end' });
-}
-
-async function ttPlayAgain(){
-  ttStopTimer();
+async function ttCloseRoom(){
   if(ttView.lobby && window.LobbySupabase){
     await window.LobbySupabase.endWordAssociationGame(ttView.lobby.id);
     if(ttLobbyChannel){ window.LobbySupabase.unsubscribe(ttLobbyChannel); ttLobbyChannel = null; }
@@ -317,7 +308,9 @@ async function ttPlayAgain(){
   ttView.lobby = null;
   ttView.gs = null;
   ttView.students = [];
-  ttShow('tt-setup');
+  ttCfg.duelA = ''; ttCfg.duelB = '';
+  ttEl('tt-stage').dataset.ttKey = '';
+  ttShow('setup');
 }
 
-ttShow('tt-setup');
+ttShow('setup');
