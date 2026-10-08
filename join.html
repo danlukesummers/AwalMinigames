@@ -927,6 +927,12 @@
     }
   }
 
+  // Fingerprint of the parts of a room row that matter for the screen (used by the backup refresh).
+  function lobbySig(row){
+    return [row.status, JSON.stringify(row.players || []), JSON.stringify(row.game_state || null),
+            row.current_word_index, row.current_hint, row.round_started_at].join('|');
+  }
+
   /* ============ shared join flow ============ */
   async function handleJoinSubmit(){
     document.getElementById('join-error').style.display = 'none';
@@ -989,7 +995,7 @@
 
     setTimeout(() => AwalSounds.play('join'), 150);
 
-    window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
+    const handleLobbyUpdate = (updatedLobby) => {
       const prevStatus = joinLobbyRow ? joinLobbyRow.status : null;
       const prevWordIndex = joinLobbyRow ? joinLobbyRow.current_word_index : null;
 
@@ -1071,7 +1077,23 @@
       } else if(document.getElementById('join-play-step').style.display !== 'none'){
         joinRenderTimer();
       }
-    });
+    };
+
+    window.LobbySupabase.subscribeToLobby(lobby.id, handleLobbyUpdate);
+
+    // Backup refresh: if a realtime update is ever missed, catch up by re-reading the room.
+    // A change is only applied after it shows up on two checks in a row, so a late reply can't flick the screen backwards.
+    let joinPendingSig = null;
+    const joinBackupPoll = setInterval(async () => {
+      if(!joinLobbyRow || !window.LobbySupabase) return;
+      const row = await window.LobbySupabase.findLobbyByCode(lobby.code);
+      if(!row) return;
+      const sig = lobbySig(row);
+      if(sig === lobbySig(joinLobbyRow)){ joinPendingSig = null; return; }
+      if(sig === joinPendingSig){ joinPendingSig = null; handleLobbyUpdate(row); }
+      else joinPendingSig = sig;
+      if(row.status === 'completed') clearInterval(joinBackupPoll);
+    }, 2500);
   }
 </script>
 
