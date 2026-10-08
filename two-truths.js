@@ -5,7 +5,8 @@
    When the teacher plays, they get exactly the same screens as a student on this page. */
 
 const ttCfg = {
-  mode: 'class',          // 'class' | 'duel'
+  mode: 'duel',           // 'duel' (head to head) | 'class'
+  teacherPlays: true,     // class mode: does the teacher take part too?
   input: 'written',       // 'written' | 'spoken'
   speechLang: 'en-US',
   duelType: 'teacher',    // 'teacher' (me vs a student) | 'students' (student vs student)
@@ -17,6 +18,7 @@ const ttView = { gs: null, lobby: null, students: [], busy: false };
 
 let ttLobbyChannel = null;
 let ttPresenceChannel = null;
+let ttPollHandle = null;
 
 function ttSound(name){ if(window.AwalSounds) AwalSounds.play(name); }
 function ttEl(id){ return document.getElementById(id); }
@@ -30,7 +32,13 @@ function ttSetMode(m){
   ttSetActive(m === 'class' ? 'tt-mode-class' : 'tt-mode-duel', m === 'class' ? 'tt-mode-duel' : 'tt-mode-class');
   ttEl('tt-mode-hint').textContent = m === 'class'
     ? 'Every student takes a turn in the hot seat. The rest of the class clicks the lie.'
-    : 'Two players. Teacher vs a student, or student vs student. Each tells once and the other clicks the lie.';
+    : 'You vs one student (or two students). Each tells once and the other clicks the lie. You only need one student to play.';
+  ttEl('tt-teacher-field').style.display = m === 'class' ? 'block' : 'none';
+}
+
+function ttSetTeacherPlays(yes){
+  ttCfg.teacherPlays = yes;
+  ttSetActive(yes ? 'tt-tp-yes' : 'tt-tp-no', yes ? 'tt-tp-no' : 'tt-tp-yes');
 }
 
 function ttSetInput(i){
@@ -85,24 +93,52 @@ async function ttCreateRoom(){
 
   ttPresenceChannel = window.LobbySupabase.watchPresence(lobby.id, ttHandleStudentLeft);
 
-  ttLobbyChannel = window.LobbySupabase.subscribeToLobby(lobby.id, (updated) => {
-    ttView.lobby = updated;
-
-    const prevIds = ttView.students.map(s => s.id);
-    const newIds = (updated.players || []).map(p => p.id);
-    if(newIds.some(id => !prevIds.includes(id))) ttSound('join');
-    else if(prevIds.some(id => !newIds.includes(id))) ttSound('leave');
-
-    ttView.students = (updated.players || []).map(p => ({ id: p.id, name: p.name, color: p.color }));
-
-    if(ttEl('tt-room-wrap').style.display !== 'none'){
-      ttRenderRoster();
-    } else if(updated.status === 'playing' && updated.game_state && updated.game_state.game === 'two-truths'){
-      ttView.gs = updated.game_state;
-      ttRender();
-    }
-  });
+  ttLobbyChannel = window.LobbySupabase.subscribeToLobby(lobby.id, ttOnLobby);
+  ttStartBackupRefresh();
 }
+
+// Handles a fresh copy of the room (from a realtime event OR the backup refresh below).
+function ttOnLobby(updated){
+  ttView.lobby = updated;
+
+  const prevIds = ttView.students.map(s => s.id);
+  const newIds = (updated.players || []).map(p => p.id);
+  if(newIds.some(id => !prevIds.includes(id))) ttSound('join');
+  else if(prevIds.some(id => !newIds.includes(id))) ttSound('leave');
+
+  ttView.students = (updated.players || []).map(p => ({ id: p.id, name: p.name, color: p.color }));
+
+  if(ttEl('tt-room-wrap').style.display !== 'none'){
+    ttRenderRoster();
+  } else if(updated.status === 'playing' && updated.game_state && updated.game_state.game === 'two-truths'){
+    ttView.gs = updated.game_state;
+    ttRender();
+  }
+}
+
+// Backup refresh: if a realtime update is ever missed, catch up by re-reading the room every couple of
+// seconds. A change is only applied once it shows up on two checks in a row, so a late reply can't
+// push the screen backwards.
+function ttLobbySig(row){
+  return [row.status, JSON.stringify(row.players || []), JSON.stringify(row.game_state || null)].join('|');
+}
+
+function ttStartBackupRefresh(){
+  ttStopBackupRefresh();
+  let pending = null;
+  ttPollHandle = setInterval(async () => {
+    const lobby = ttView.lobby;
+    if(!lobby || !window.LobbySupabase) return;
+    const row = await window.LobbySupabase.findLobbyByCode(lobby.code);
+    if(!row || !ttView.lobby) return;
+    const sig = ttLobbySig(row);
+    if(sig === ttLobbySig(ttView.lobby)){ pending = null; return; }
+    if(sig === pending){ pending = null; ttOnLobby(row); }
+    else pending = sig;
+  }, 2000);
+}
+
+function ttStopBackupRefresh(){ if(ttPollHandle){ clearInterval(ttPollHandle); ttPollHandle = null; } }
 
 function ttCopyRoomLink(){
   navigator.clipboard.writeText(ttEl('tt-room-link').textContent).then(() => {
@@ -154,6 +190,11 @@ function ttRenderRoster(){
     // drop picks that left the room
     if(!ttView.students.some(s => s.id === ttCfg.duelA)) ttCfg.duelA = '';
     if(!ttView.students.some(s => s.id === ttCfg.duelB)) ttCfg.duelB = '';
+    // convenience: pick automatically when there's no real choice to make
+    if(ttCfg.duelType === 'teacher' && !ttCfg.duelA && count === 1) ttCfg.duelA = ttView.students[0].id;
+    if(ttCfg.duelType === 'students' && count === 2 && !ttCfg.duelA && !ttCfg.duelB){
+      ttCfg.duelA = ttView.students[0].id; ttCfg.duelB = ttView.students[1].id;
+    }
     const studentsVs = ttCfg.duelType === 'students';
     ttEl('tt-pick-b-wrap').style.display = studentsVs ? 'block' : 'none';
     ttEl('tt-pick-a-label').textContent = studentsVs ? 'STUDENT 1' : 'STUDENT';
@@ -169,11 +210,13 @@ function ttUpdateBeginBtn(){
   let ok = false, label = '';
 
   if(ttCfg.mode === 'class'){
-    ok = count >= 2;
-    label = ok ? '▶ Start (' + count + ' students)' : '▶ Need at least 2 students (' + count + ' joined)';
+    const need = ttCfg.teacherPlays ? 1 : 2;
+    ok = count >= need;
+    label = ok ? '▶ Start (' + count + ' student' + (count === 1 ? '' : 's') + (ttCfg.teacherPlays ? ' + you' : '') + ')'
+               : '▶ Waiting for ' + (need === 1 ? 'a student' : 'at least 2 students') + ' to join (' + count + ' joined)';
   } else if(ttCfg.duelType === 'teacher'){
     ok = !!ttCfg.duelA;
-    label = ok ? '▶ Start: you vs ' + ttStudentName(ttCfg.duelA) : '▶ Choose your opponent';
+    label = ok ? '▶ Start: you vs ' + ttStudentName(ttCfg.duelA) : (count === 0 ? '▶ Waiting for a student to join…' : '▶ Choose your opponent');
   } else {
     ok = !!ttCfg.duelA && !!ttCfg.duelB && ttCfg.duelA !== ttCfg.duelB;
     label = ok ? '▶ Start: ' + ttStudentName(ttCfg.duelA) + ' vs ' + ttStudentName(ttCfg.duelB) : '▶ Choose two students';
@@ -192,6 +235,8 @@ async function ttBegin(){
 
   const players = ttView.students.map(s => ({ id: s.id, name: s.name }));
   let duel = null;
+
+  if(ttCfg.mode === 'class' && ttCfg.teacherPlays) players.push({ id: TT_TEACHER_ID, name: 'Teacher' });
 
   if(ttCfg.mode === 'duel'){
     if(ttCfg.duelType === 'teacher'){
@@ -300,6 +345,7 @@ async function ttSend(action){
 }
 
 async function ttCloseRoom(){
+  ttStopBackupRefresh();
   if(ttView.lobby && window.LobbySupabase){
     await window.LobbySupabase.endWordAssociationGame(ttView.lobby.id);
     if(ttLobbyChannel){ window.LobbySupabase.unsubscribe(ttLobbyChannel); ttLobbyChannel = null; }
