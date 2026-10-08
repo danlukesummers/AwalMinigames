@@ -91,10 +91,19 @@
         <div class="tt-field">
           <label>How do you want to play?</label>
           <div class="tt-seg">
-            <button id="tt-mode-class" class="active" onclick="ttSetMode('class')">🏫 Whole class</button>
-            <button id="tt-mode-duel" onclick="ttSetMode('duel')">⚔️ Head to head</button>
+            <button id="tt-mode-duel" class="active" onclick="ttSetMode('duel')">⚔️ Head to head</button>
+            <button id="tt-mode-class" onclick="ttSetMode('class')">🏫 Whole class</button>
           </div>
-          <p class="tt-hint" id="tt-mode-hint">Every student takes a turn in the hot seat. The rest of the class clicks the lie.</p>
+          <p class="tt-hint" id="tt-mode-hint">You vs one student (or two students). Each tells once and the other clicks the lie. You only need one student to play.</p>
+        </div>
+
+        <div class="tt-field" id="tt-teacher-field" style="display:none;">
+          <label>Will you play too?</label>
+          <div class="tt-seg">
+            <button id="tt-tp-yes" class="active" onclick="ttSetTeacherPlays(true)">🙋 I'll play too</button>
+            <button id="tt-tp-no" onclick="ttSetTeacherPlays(false)">🎤 I'll just host</button>
+          </div>
+          <p class="tt-hint">If you play, you take a turn in the hot seat and guess along with the class, so one student is enough to start.</p>
         </div>
 
         <div class="tt-field">
