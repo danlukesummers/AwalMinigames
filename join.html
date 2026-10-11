@@ -983,6 +983,22 @@
       return;
     }
 
+    // joinLobby only reports errors. If the database quietly refuses the write (e.g. a row-level-security
+    // rule) it still looks like success, so confirm the room really recorded this player.
+    let recorded = false;
+    for(let i = 0; i < 3 && !recorded; i++){
+      const check = await window.LobbySupabase.findLobbyByCode(code);
+      recorded = !!(check && (check.players || []).some(p => p.id === player.id));
+      if(!recorded) await new Promise(r => setTimeout(r, 500));
+    }
+    if(!recorded){
+      const why = window.LobbySupabase.lastError ? ' (' + window.LobbySupabase.lastError + ')' : '';
+      showJoinError('You joined, but the room did not record you, so your teacher cannot see you. Please tell your teacher.' + why);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Join room';
+      return;
+    }
+
     joinLobbyRow = lobby;
     joinPlayer = player;
 
