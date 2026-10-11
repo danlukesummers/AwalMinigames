@@ -8,17 +8,28 @@
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="retro-arcade-body">
 <header>
   <nav>
-    <div class="brand-group" onmouseenter="showGamesDrop()" onmouseleave="scheduleHideGamesDrop()"><a href="index.html" class="logo" style="text-decoration:none;color:inherit;"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL</a><a href="games.html" class="cb-logo-badge">MINIGAMES</a></div>
+    <div class="brand-group" onmouseenter="showGamesDrop()" onmouseleave="scheduleHideGamesDrop()">
+      <a href="index.html" class="logo" style="text-decoration:none;color:inherit;">
+        <svg viewBox="0 0 40 40" width="32" height="32" aria-hidden="true" focusable="false" style="flex-shrink:0;">
+          <path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-text-block">AWAL<br><small>MINIGAMES</small></span>
+      </a>
+    </div>
     <div class="nav-links">
+      <a href="games.html">GAMES</a>
+      <a href="pricing.html">PRICING</a>
       <a href="index.html#how">How it works</a>
-      <a href="pricing.html">Pricing</a>
-      <a href="about.html">About</a>
       <a href="index.html#faq">FAQ</a>
     </div>
-    <a href="login.html" class="btn btn-primary" style="text-decoration:none;">Start Free</a>
+    <div class="nav-right-cluster">
+      <div class="retro-badge-top">REAL ENGLISH.<br>REAL PROGRESS.</div>
+      <a href="login.html" class="btn btn-retro-pink" style="text-decoration:none;">LOG IN</a>
+    </div>
   </nav>
 
   <div class="games-drop" id="games-drop" onmouseenter="cancelHideGamesDrop()" onmouseleave="scheduleHideGamesDrop()">
@@ -29,56 +40,91 @@
 
 <div id="page-home" class="page">
 <!-- HERO -->
-<section class="hero hero-loud hero-simple">
-  <div class="hero-blob hb1"></div>
-  <div class="hero-blob hb2"></div>
-  <div class="hero-blob hb3"></div>
+<section class="hero hero-retro-arcade">
+  <div class="wrap hero-retro-inner">
+    <div class="hero-retro-content">
+      <h1>
+        <span class="hl-streak-yellow">LESS WORKSHEETS.</span><br>
+        <span class="hl-streak-magenta-box">MORE 'ONE MORE<br>ROUND!'</span>
+      </h1>
+      <p class="hero-sub">Quick, competitive English games for real classrooms.</p>
 
-  <div class="wrap hero-simple-inner">
-    <div class="eyebrow"><span class="sw"></span> Built for online ESL teachers</div>
-    <h1>English games.<br><span class="hl-wrap">Zero prep.<svg class="hl-underline" viewBox="0 0 220 18" preserveAspectRatio="none"><path d="M2 12 Q 55 2, 110 10 T 218 8" stroke="#C837E8" stroke-width="7" fill="none" stroke-linecap="round"/></svg></span></h1>
-    <p class="hero-sub">Pick a game. Start playing. Get your students talking.</p>
+      <div class="hero-ctas hero-simple-ctas">
+        <button class="btn btn-retro-primary btn-glow btn-large" onclick="openGuestLobby()">TRY A FREE GAME ↗</button>
+        <a class="btn btn-retro-outline btn-large" href="games.html">CREATE FREE ACCOUNT</a>
+      </div>
 
-    <div class="hero-ctas hero-simple-ctas">
-      <button class="btn btn-primary btn-glow btn-large" onclick="openGuestLobby()">▶ Play Free Now</button>
-      <a class="btn btn-ghost btn-large" href="games.html">Browse Games →</a>
+      <div class="hero-proof">
+        <span>Jump straight in</span>
+        <span>•</span>
+        <span>No account needed</span>
+      </div>
     </div>
 
-    <div class="hero-proof">
-      <span>✓ No account required</span>
-      <span>✓ Free trial game</span>
-      <span>✓ Students join by link</span>
+    <!-- Hand-drawn Reference Illustration Stage -->
+    <div class="hero-retro-illustration">
+      <div class="retro-floating-badge-b">B</div>
+      <div class="retro-floating-badge-c">C</div>
+      <div class="retro-mascot-arrow">
+        <svg viewBox="0 0 100 80" width="70" height="60">
+          <path d="M10 40 L70 10 L50 70 Z" fill="#C837E8" stroke="#1D1934" stroke-width="4" stroke-linejoin="round"/>
+          <circle cx="45" cy="35" r="4" fill="#1D1934"/>
+          <path d="M48 45 Q 55 52, 60 42" stroke="#1D1934" stroke-width="3" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="retro-laptop-mockup">
+        <div class="retro-screen-header">
+          <span>WORD ASSOCIATION</span>
+          <span class="retro-pts">★ +10</span>
+        </div>
+        <div class="retro-word-main">OCEAN</div>
+        <div class="retro-choices-grid">
+          <div class="rc-btn pink">WAVE</div>
+          <div class="rc-btn yellow">SAND</div>
+          <div class="rc-btn green">SURF</div>
+          <div class="rc-btn blue">BLUE</div>
+        </div>
+        <div class="laptop-base-art"></div>
+      </div>
+
+      <div class="retro-cheering-kid">
+        <svg viewBox="0 0 60 70" width="55" height="65">
+          <circle cx="30" cy="22" r="14" fill="#FFE082" stroke="#1D1934" stroke-width="3"/>
+          <path d="M22 18 Q 30 24, 38 18" stroke="#1D1934" stroke-width="2.5" fill="none"/>
+          <circle cx="25" cy="21" r="2" fill="#1D1934"/>
+          <circle cx="35" cy="21" r="2" fill="#1D1934"/>
+          <path d="M15 45 L30 32 L45 45 L40 65 L20 65 Z" fill="#C837E8" stroke="#1D1934" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M10 38 L5 25" stroke="#1D1934" stroke-width="3" stroke-linecap="round"/>
+          <path d="M50 38 L55 25" stroke="#1D1934" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="retro-book-stack">
+        <div class="book pink"></div>
+        <div class="book yellow"></div>
+        <div class="book blue"></div>
+      </div>
     </div>
   </div>
 </section>
 
 <!-- GROWTH LOOP STRIP -->
-<section class="loop-strip">
+<section class="loop-strip retro-strip">
   <div class="wrap">
     <div class="loop-track">
       <div class="loop-step">
-        <div class="loop-icon" style="background:#FFE0DD;">🎮</div>
-        <p class="loop-label">Play free</p>
+        <div class="loop-icon pixel-box" style="background:#FFE0DD;">1</div>
+        <p class="loop-label">PLAY NOW</p>
       </div>
       <div class="loop-arrow">→</div>
       <div class="loop-step">
-        <div class="loop-icon" style="background:#FFE7B8;">😍</div>
-        <p class="loop-label">Love it</p>
+        <div class="loop-icon pixel-box" style="background:#EAE3FF;">2</div>
+        <p class="loop-label">SAVE YOUR PROGRESS</p>
       </div>
       <div class="loop-arrow">→</div>
       <div class="loop-step">
-        <div class="loop-icon" style="background:#D9F5F1;">⚡</div>
-        <p class="loop-label">Sign up free</p>
-      </div>
-      <div class="loop-arrow">→</div>
-      <div class="loop-step">
-        <div class="loop-icon" style="background:#EAE3FF;">🔥</div>
-        <p class="loop-label">Max your credits</p>
-      </div>
-      <div class="loop-arrow">→</div>
-      <div class="loop-step">
-        <div class="loop-icon" style="background:#DCEEFF;">🚀</div>
-        <p class="loop-label">Go unlimited</p>
+        <div class="loop-icon pixel-box" style="background:#FFE7B8;">3</div>
+        <p class="loop-label">PLAY WITH YOUR CLASS</p>
       </div>
     </div>
   </div>
@@ -163,7 +209,7 @@
         <ul class="plan-feats">
           <li><span class="check">✓</span> 5 game credits / week (20/mo max)</li>
           <li><span class="check">✓</span> Access to 6 game types</li>
-          <li><span class="check">✓</span> Peronalised vocabulary, games & quizzes</li>
+          <li><span class="check">✓</span> Personalised vocabulary, games & quizzes</li>
           <li><span class="check">✓</span> Whiteboard (watermarked)</li>
           <li><span class="check">✓</span> Students join free, no account</li>
         </ul>
@@ -178,7 +224,7 @@
         <ul class="plan-feats">
           <li><span class="check">✓</span> Unlimited game sessions</li>
           <li><span class="check">✓</span> Access to all game types</li>
-          <li><span class="check">✓</span> Peronalised and AI vocabulary & quizzes</li>
+          <li><span class="check">✓</span> Personalised and AI vocabulary & quizzes</li>
           <li><span class="check">✓</span> Whiteboard (watermarked)</li>
           <li><span class="check">✓</span> Cancel anytime</li>
         </ul>
