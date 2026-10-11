@@ -4,6 +4,33 @@
    The teacher can HOST (class mode / watching a student duel) or PLAY (head to head: "me vs a student").
    When the teacher plays, they get exactly the same screens as a student on this page. */
 
+/* ---- self-check: tell the teacher on screen if a file is out of date or something breaks ---- */
+const TT_PAGE_NEEDS_CORE = 3;
+
+function ttShowProblem(msg){
+  console.error('[Two Truths]', msg);
+  let bar = document.getElementById('tt-problem');
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'tt-problem';
+    bar.style.cssText = 'background:#D7263D; color:#fff; padding:14px 20px; font-weight:700; font-size:14px; text-align:center; font-family:Space Grotesk,sans-serif;';
+    const world = document.querySelector('.tt-world') || document.body;
+    world.insertBefore(bar, world.firstChild);
+  }
+  // keep earlier messages (e.g. "file out of date") visible; add new ones after them
+  if(bar.textContent.indexOf(msg) === -1) bar.textContent += (bar.textContent ? '   ·   ' : '') + '⚠ ' + msg;
+}
+
+(function ttCheckFiles(){
+  const coreOk = typeof TT_CORE_VERSION !== 'undefined' && TT_CORE_VERSION === TT_PAGE_NEEDS_CORE &&
+                 typeof ttEsc === 'function' && typeof ttRenderPlayer === 'function';
+  if(!coreOk){
+    ttShowProblem('two-truths-core.js is missing or out of date. Replace it with the latest version, then hard-refresh this page (Ctrl+Shift+R).');
+  }
+})();
+
+window.addEventListener('error', (e) => { ttShowProblem('Page error: ' + e.message); });
+
 const ttCfg = {
   mode: 'duel',           // 'duel' (head to head) | 'class'
   teacherPlays: true,     // class mode: does the teacher take part too?
@@ -90,29 +117,41 @@ async function ttCreateRoom(){
   ttView.lobby = lobby;
   ttEl('tt-room-code').textContent = lobby.code;
   ttEl('tt-room-link').textContent = window.location.origin + '/join.html?code=' + lobby.code;
+  ttSetLiveStatus('Room ' + lobby.code + ' · waiting for students…');
 
-  ttPresenceChannel = window.LobbySupabase.watchPresence(lobby.id, ttHandleStudentLeft);
+  ttStartBackupRefresh();   // start this first so nothing below can stop it
 
-  ttLobbyChannel = window.LobbySupabase.subscribeToLobby(lobby.id, ttOnLobby);
-  ttStartBackupRefresh();
+  try {
+    ttPresenceChannel = window.LobbySupabase.watchPresence(lobby.id, ttHandleStudentLeft);
+    ttLobbyChannel = window.LobbySupabase.subscribeToLobby(lobby.id, ttOnLobby);
+  } catch(e){
+    ttShowProblem('Live updates could not start (' + e.message + '). Using the backup refresh instead.');
+  }
 }
 
 // Handles a fresh copy of the room (from a realtime event OR the backup refresh below).
 function ttOnLobby(updated){
-  ttView.lobby = updated;
+  try {
+    ttView.lobby = updated;
+    ttSetLiveStatus('Room ' + updated.code + ' · update received ' + new Date().toLocaleTimeString() + ' · students recorded in the database: ' + (updated.players || []).length);
 
-  const prevIds = ttView.students.map(s => s.id);
-  const newIds = (updated.players || []).map(p => p.id);
-  if(newIds.some(id => !prevIds.includes(id))) ttSound('join');
-  else if(prevIds.some(id => !newIds.includes(id))) ttSound('leave');
+    const prevIds = ttView.students.map(s => s.id);
+    const newIds = (updated.players || []).map(p => p.id);
+    const joined = newIds.some(id => !prevIds.includes(id));
+    const left = !joined && prevIds.some(id => !newIds.includes(id));
 
-  ttView.students = (updated.players || []).map(p => ({ id: p.id, name: p.name, color: p.color }));
+    ttView.students = (updated.players || []).map(p => ({ id: p.id, name: p.name, color: p.color }));
 
-  if(ttEl('tt-room-wrap').style.display !== 'none'){
-    ttRenderRoster();
-  } else if(updated.status === 'playing' && updated.game_state && updated.game_state.game === 'two-truths'){
-    ttView.gs = updated.game_state;
-    ttRender();
+    if(ttEl('tt-room-wrap').style.display !== 'none'){
+      ttRenderRoster();
+    } else if(updated.status === 'playing' && updated.game_state && updated.game_state.game === 'two-truths'){
+      ttView.gs = updated.game_state;
+      ttRender();
+    }
+
+    if(joined) ttSound('join'); else if(left) ttSound('leave');
+  } catch(e){
+    ttShowProblem('Could not show the room update: ' + e.message);
   }
 }
 
@@ -123,6 +162,11 @@ function ttLobbySig(row){
   return [row.status, JSON.stringify(row.players || []), JSON.stringify(row.game_state || null)].join('|');
 }
 
+function ttSetLiveStatus(text){
+  const el = document.getElementById('tt-live-status');
+  if(el) el.textContent = text;
+}
+
 function ttStartBackupRefresh(){
   ttStopBackupRefresh();
   let pending = null;
@@ -130,7 +174,13 @@ function ttStartBackupRefresh(){
     const lobby = ttView.lobby;
     if(!lobby || !window.LobbySupabase) return;
     const row = await window.LobbySupabase.findLobbyByCode(lobby.code);
-    if(!row || !ttView.lobby) return;
+    if(!ttView.lobby) return;
+    const clock = new Date().toLocaleTimeString();
+    if(!row){
+      ttSetLiveStatus('⚠ Could not read the room at ' + clock + (window.LobbySupabase.lastError ? ': ' + window.LobbySupabase.lastError : ''));
+      return;
+    }
+    ttSetLiveStatus('Room ' + row.code + ' · checked ' + clock + ' · students recorded in the database: ' + (row.players || []).length);
     const sig = ttLobbySig(row);
     if(sig === ttLobbySig(ttView.lobby)){ pending = null; return; }
     if(sig === pending){ pending = null; ttOnLobby(row); }
