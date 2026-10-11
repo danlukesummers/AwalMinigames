@@ -15,6 +15,7 @@
    PHASES: writing -> questions -> voting -> reveal -> (next teller) -> final   ('again' restarts)
    SCORING: +1 for each guesser who clicks the lie; the teller gets +1 for each guesser fooled. */
 
+const TT_CORE_VERSION = 3;   // two-truths.js checks this so a stale copy of this file is reported on screen
 const TT_MAX_LEN = 140;
 const TT_LETTERS = ['A', 'B', 'C'];
 const TT_TEACHER_ID = 'teacher';
