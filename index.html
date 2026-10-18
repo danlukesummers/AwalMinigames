@@ -39,96 +39,130 @@
 </header>
 
 <div id="page-home" class="page">
-<!-- HERO -->
-<section class="hero hero-retro-arcade">
-  <div class="wrap hero-retro-inner">
-    <div class="hero-retro-content">
-      <h1>
-        <span class="hl-streak-yellow">LESS WORKSHEETS.</span><br>
-        <span class="hl-streak-magenta-box">MORE 'ONE MORE<br>ROUND!'</span>
-      </h1>
-      <p class="hero-sub">Quick, competitive English games for real classrooms.</p>
+<!-- NEON BENTO HERO -->
+<section class="awal-bento-hero">
+  <div class="awal-bento-grid">
 
-      <div class="hero-ctas hero-simple-ctas">
-        <button class="btn btn-retro-primary btn-glow btn-large" onclick="openGuestLobby()">TRY A FREE GAME ↗</button>
-        <a class="btn btn-retro-outline btn-large" href="games.html">CREATE FREE ACCOUNT</a>
+    <!-- YOUR FAVOURITE -->
+    <a class="awal-bento-card awal-favourite" href="word-association.html">
+      <span class="awal-bento-label">★ YOUR FAVOURITE</span>
+      <div class="awal-favourite-art" aria-hidden="true">🔗</div>
+      <h2>WORD<br>ASSOCIATION</h2>
+      <p>Word links, collocations and spontaneous speaking.</p>
+      <span class="awal-bento-link">PLAY THE GAME ↗</span>
+    </a>
+
+    <!-- MAIN PLAY NOW TILE -->
+    <div class="awal-bento-card awal-play">
+      <span class="awal-play-spark" aria-hidden="true">✦</span>
+      <span class="awal-play-controller" aria-hidden="true">🎮</span>
+      <span class="awal-bento-label">LESS PREP. MORE PLAY.</span>
+      <h1>READY TO<br>PLAY?</h1>
+      <button class="awal-play-button" onclick="openGuestLobby()">
+        PLAY NOW <span aria-hidden="true">↗</span>
+      </button>
+      <p class="awal-play-promise">Play now. Free and instant.<br><strong>No account required.</strong></p>
+      <span class="awal-play-foot">TRY IT SOLO OR WITH A STUDENT</span>
+    </div>
+
+    <!-- CLASSROOM LOBBY -->
+    <a class="awal-bento-card awal-multiplayer" href="games.html">
+      <span class="awal-bento-label">MADE FOR TEACHERS</span>
+      <h2>YOUR CLASSROOM.<br>CONNECTED.</h2>
+      <p>Share a room code and get your students playing in seconds.</p>
+      <div class="awal-player-art" aria-hidden="true">
+        <span>👩‍🏫</span><span>⚡</span><span>🧑‍🎓</span>
       </div>
+      <span class="awal-bento-link">EXPLORE THE GAMES ↗</span>
+    </a>
 
-      <div class="hero-proof">
-        <span>Jump straight in</span>
-        <span>•</span>
-        <span>No account needed</span>
+    <!-- FEATURED GAMES -->
+    <div class="awal-bento-card awal-featured">
+      <span class="awal-bento-label">PICK YOUR NEXT CLASSROOM HIT</span>
+      <h2>FEATURED GAMES</h2>
+
+      <a class="awal-game-row" href="word-association.html">
+        <span class="awal-game-icon awal-orange">🔗</span>
+        <span class="awal-game-copy">
+          <strong>Word Association</strong>
+          <small>Vocabulary, collocations and speaking fluency</small>
+        </span>
+        <span class="awal-game-arrow">↗</span>
+      </a>
+
+      <a class="awal-game-row" href="hangman.html">
+        <span class="awal-game-icon awal-cyan">✏️</span>
+        <span class="awal-game-copy">
+          <strong>Hangman</strong>
+          <small>Spelling, definitions and topic vocabulary</small>
+        </span>
+        <span class="awal-game-arrow">↗</span>
+      </a>
+
+      <a class="awal-game-row" href="system-suspects.html">
+        <span class="awal-game-icon awal-pink">🕵️</span>
+        <span class="awal-game-copy">
+          <strong>System Suspects</strong>
+          <small>Question forms, descriptions and deduction</small>
+        </span>
+        <span class="awal-game-arrow">↗</span>
+      </a>
+
+      <a class="awal-game-row" href="games.html">
+        <span class="awal-game-icon awal-lime">🎯</span>
+        <span class="awal-game-copy">
+          <strong>Explore all games</strong>
+          <small>Find your next lesson activity</small>
+        </span>
+        <span class="awal-game-arrow">↗</span>
+      </a>
+    </div>
+
+    <!-- SIMPLE TEACHER WORKFLOW -->
+    <div class="awal-bento-card awal-workflow">
+      <span class="awal-bento-label">YOUR NEW LESSON ROUTINE</span>
+      <h2>LESS SETUP.<br>MORE SPEAKING.</h2>
+      <div class="awal-workflow-step"><span>01</span> Pick a game <b>✓</b></div>
+      <div class="awal-workflow-step"><span>02</span> Share a room code <b>✓</b></div>
+      <div class="awal-workflow-step"><span>03</span> Let them play <b>↗</b></div>
+    </div>
+
+    <!-- PRICING -->
+    <a class="awal-bento-card awal-upgrade" href="pricing.html">
+      <span class="awal-upgrade-icon" aria-hidden="true">🔓</span>
+      <span class="awal-bento-label">READY FOR MORE?</span>
+      <h2>UNLOCK MORE FOR YOUR CLASSROOM</h2>
+      <p>Explore plans for more game access and features.</p>
+      <span class="awal-bento-link">EXPLORE PRICING ↗</span>
+    </a>
+
+    <!-- FOUR TEACHING BENEFITS -->
+    <div class="awal-benefits">
+      <div class="awal-benefit awal-benefit-yellow">
+        <span aria-hidden="true">⚡</span>
+        <strong>LESS PREP</strong>
+        <small>Ready-to-play games.</small>
+      </div>
+      <div class="awal-benefit awal-benefit-cyan">
+        <span aria-hidden="true">🙌</span>
+        <strong>MORE PARTICIPATION</strong>
+        <small>Get everyone involved.</small>
+      </div>
+      <div class="awal-benefit awal-benefit-pink">
+        <span aria-hidden="true">🧠</span>
+        <strong>REAL LEARNING</strong>
+        <small>Practise useful English.</small>
+      </div>
+      <div class="awal-benefit awal-benefit-orange">
+        <span aria-hidden="true">👩‍🏫</span>
+        <strong>FLEXIBLE TEACHING</strong>
+        <small>Solo, pairs or whole class.</small>
       </div>
     </div>
 
-    <!-- Hand-drawn Reference Illustration Stage -->
-    <div class="hero-retro-illustration">
-      <div class="retro-floating-badge-b">B</div>
-      <div class="retro-floating-badge-c">C</div>
-      <div class="retro-mascot-arrow">
-        <svg viewBox="0 0 100 80" width="70" height="60">
-          <path d="M10 40 L70 10 L50 70 Z" fill="#C837E8" stroke="#1D1934" stroke-width="4" stroke-linejoin="round"/>
-          <circle cx="45" cy="35" r="4" fill="#1D1934"/>
-          <path d="M48 45 Q 55 52, 60 42" stroke="#1D1934" stroke-width="3" fill="none" stroke-linecap="round"/>
-        </svg>
-      </div>
-
-      <div class="retro-laptop-mockup">
-        <div class="retro-screen-header">
-          <span>WORD ASSOCIATION</span>
-          <span class="retro-pts">★ +10</span>
-        </div>
-        <div class="retro-word-main">OCEAN</div>
-        <div class="retro-choices-grid">
-          <div class="rc-btn pink">WAVE</div>
-          <div class="rc-btn yellow">SAND</div>
-          <div class="rc-btn green">SURF</div>
-          <div class="rc-btn blue">BLUE</div>
-        </div>
-        <div class="laptop-base-art"></div>
-      </div>
-
-      <div class="retro-cheering-kid">
-        <svg viewBox="0 0 60 70" width="55" height="65">
-          <circle cx="30" cy="22" r="14" fill="#FFE082" stroke="#1D1934" stroke-width="3"/>
-          <path d="M22 18 Q 30 24, 38 18" stroke="#1D1934" stroke-width="2.5" fill="none"/>
-          <circle cx="25" cy="21" r="2" fill="#1D1934"/>
-          <circle cx="35" cy="21" r="2" fill="#1D1934"/>
-          <path d="M15 45 L30 32 L45 45 L40 65 L20 65 Z" fill="#C837E8" stroke="#1D1934" stroke-width="3" stroke-linejoin="round"/>
-          <path d="M10 38 L5 25" stroke="#1D1934" stroke-width="3" stroke-linecap="round"/>
-          <path d="M50 38 L55 25" stroke="#1D1934" stroke-width="3" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <div class="retro-book-stack">
-        <div class="book pink"></div>
-        <div class="book yellow"></div>
-        <div class="book blue"></div>
-      </div>
-    </div>
   </div>
 </section>
 
-<!-- GROWTH LOOP STRIP -->
-<section class="loop-strip retro-strip">
-  <div class="wrap">
-    <div class="loop-track">
-      <div class="loop-step">
-        <div class="loop-icon pixel-box" style="background:#FFE0DD;">1</div>
-        <p class="loop-label">PLAY NOW</p>
-      </div>
-      <div class="loop-arrow">→</div>
-      <div class="loop-step">
-        <div class="loop-icon pixel-box" style="background:#EAE3FF;">2</div>
-        <p class="loop-label">SAVE YOUR PROGRESS</p>
-      </div>
-      <div class="loop-arrow">→</div>
-      <div class="loop-step">
-        <div class="loop-icon pixel-box" style="background:#FFE7B8;">3</div>
-        <p class="loop-label">PLAY WITH YOUR CLASS</p>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- PROBLEM / AGITATION -->
 <section class="problem">
