@@ -1,4 +1,4 @@
-Add these Environment Variables in Vercel > Project > Settings > Environment Variables, then redeploy:
+ACCOUNT PROJECT ONLY — Add these Environment Variables in Vercel > Project > Settings > Environment Variables, then redeploy:
 
 SUPABASE_URL=https://deaofitkmcwiovxwurzl.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_7uGsYzWEnISEJJt2v3e36A_PZXMr7cF

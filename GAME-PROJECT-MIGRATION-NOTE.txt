@@ -1,0 +1,3 @@
+The SQL you supplied for lobbies.current_word_index, lobbies.time_limit, lobbies.round_started_at and lobby_progress belongs ONLY in the existing game project: birqqkztlmrcmxzgmzdh.
+
+It is intentionally not combined with account-supabase-setup.sql. If you have already run that migration, do not run it again. If you have not run it yet, run your original SQL in the game project's SQL Editor. It is not a repository JavaScript file and does not need to be deployed to Vercel to take effect.
