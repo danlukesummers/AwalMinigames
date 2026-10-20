@@ -1,0 +1,12 @@
+Add these Environment Variables in Vercel > Project > Settings > Environment Variables, then redeploy:
+
+SUPABASE_URL=https://deaofitkmcwiovxwurzl.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_7uGsYzWEnISEJJt2v3e36A_PZXMr7cF
+SUPABASE_SERVICE_ROLE_KEY=PASTE_YOUR_SUPABASE_SECRET_SERVICE_ROLE_KEY_HERE
+ADMIN_EMAIL=YOUR_LOGIN_EMAIL_ADDRESS
+SITE_URL=https://awal-minigames.vercel.app
+
+Important:
+- Get SUPABASE_SERVICE_ROLE_KEY from Supabase Project Settings > API Keys (secret/service_role key). Add it only to Vercel Environment Variables. Never put it in HTML or JavaScript, and never send it in chat.
+- ADMIN_EMAIL must exactly match the email address you will use to sign in to AWAL and open admin.html.
+- The publishable key is intended for browser use. The service-role key is private and bypasses Row Level Security.
