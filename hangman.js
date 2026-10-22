@@ -1113,25 +1113,44 @@ function hgHandleStudentLeft(playerId){
   }, 4000);
 }
 
+
 async function hgDashNextWord(){
   if(!hgState.roundEnded) return;
 
   hgStopDashboardTimer();
 
   if(hgState.idx >= hgState.words.length - 1){
-    document.getElementById('hg-dashboard').style.display = 'none';
-    document.getElementById('hg-summary').style.display = 'block';
+    const dashboard = document.getElementById('hg-dashboard');
+    const summary = document.getElementById('hg-summary');
+    const summaryLine = document.getElementById('hg-summary-line');
+    const summaryNote = document.getElementById('hg-summary-note');
 
     const winners = hgRoom.students.filter(s => s.won).length;
 
-    document.getElementById('hg-summary-line').innerHTML =
-      'Round complete! <strong>' + winners + '</strong> of <strong>' +
-      hgRoom.students.length + '</strong> students solved the final word.';
+    if(summaryLine){
+      summaryLine.innerHTML =
+        'Game complete! <strong>' + winners + '</strong> of <strong>' +
+        hgRoom.students.length + '</strong> students solved the final word.';
+    }
 
-    document.getElementById('hg-summary-note').textContent =
-      'Start a new room when you are ready for another round.';
+    if(summaryNote){
+      summaryNote.textContent =
+        'Play another round with the same students and room code, or choose Change settings.';
+    }
 
-    if(hgProgressChannel){
+    if(dashboard) dashboard.style.display = 'none';
+
+    if(summary){
+      summary.hidden = false;
+      summary.style.setProperty('display', 'block', 'important');
+      summary.style.visibility = 'visible';
+    }else{
+      console.error('Hangman summary element #hg-summary is missing.');
+      if(dashboard) dashboard.style.display = 'block';
+      return;
+    }
+
+    if(hgProgressChannel && window.LobbySupabase){
       window.LobbySupabase.unsubscribe(hgProgressChannel);
       hgProgressChannel = null;
     }
@@ -1141,7 +1160,7 @@ async function hgDashNextWord(){
 
   hgState.idx++;
 
-  if(hgLobby && window.LobbySupabase) {
+  if(hgLobby && window.LobbySupabase){
     const nextLobby = await window.LobbySupabase.setLobbyWordIndex(
       hgLobby.id,
       hgState.idx
