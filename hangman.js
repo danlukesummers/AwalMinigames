@@ -563,11 +563,6 @@ function hgShowSummary(){
   document.getElementById('hg-final-total').textContent = hgState.words.length;
 }
 
-…
-You've accidentally pasted the end of hgResetToSetup() after the new hgPlayAgain() function. Those lines belong inside hgResetToSetup(), not after hgPlayAgain().
-
-Your code should be structured like this:
-
 function hgResetToSetup(){
   hgStopDashboardTimer();
 
