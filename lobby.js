@@ -1,3 +1,4 @@
+
 // lobby.js
 // Real live-lobby logic backed by Supabase.
 
@@ -68,6 +69,56 @@ async function createLobby(game, timeLimit){
     return null;
   }
   return null;
+}
+
+// Restart a finished game in the same lobby.
+// Keeps the lobby ID, room code, and connected players.
+// Supported options: words, timeLimit, game_state.
+async function restartLobbyGame(lobbyId, options = {}){
+  if(!lobbyId || !options || typeof options !== 'object'){
+    recordError('restartLobbyGame', new Error('A lobby ID and replay options are required.'));
+    return null;
+  }
+
+  const payload = {
+    status: 'playing',
+    current_word_index: 0,
+    current_hint: null,
+    round_started_at: new Date().toISOString()
+  };
+
+  if(Object.prototype.hasOwnProperty.call(options, 'words')){
+    payload.words = Array.isArray(options.words) ? options.words : [];
+  }
+  if(Object.prototype.hasOwnProperty.call(options, 'timeLimit')){
+    payload.time_limit = Number(options.timeLimit) || 0;
+  }
+  if(Object.prototype.hasOwnProperty.call(options, 'game_state')){
+    payload.game_state = options.game_state;
+  }
+
+  const { data, error } = await safeWrite(
+    (p) => supabase.from('lobbies').update(p).eq('id', lobbyId).select().single(),
+    payload
+  );
+
+  if(error){
+    recordError('restartLobbyGame', error);
+    return null;
+  }
+
+  // Clear old Hangman progress for the replay.
+  // The room and its players are preserved.
+  const { error: progressError } = await supabase
+    .from('lobby_progress')
+    .delete()
+    .eq('lobby_id', lobbyId);
+
+  if(progressError){
+    console.warn('[LobbySupabase] Could not clear old lobby progress:', progressError);
+  }
+
+  return data;
 }
 
 async function startLobbyGame(lobbyId, words, timeLimit){
@@ -378,6 +429,7 @@ window.LobbySupabase = {
   lastError: null,
   createLobby,
   startLobbyGame,
+  restartLobbyGame,
   setLobbyWordIndex,
   setLobbyHint,
   findLobbyByCode,
