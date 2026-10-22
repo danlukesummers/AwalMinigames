@@ -53,8 +53,6 @@ function hgGetHintForWord(word) {
 }
 
 /* ============ AI HINTS (simple A1) ============ */
-// Asks the server for one easy hint per word. Runs in the background when a
-// game starts; until it finishes (or if it fails) the built-in hints are used.
 async function hgFetchAIHints(words){
   hgState.aiHints = {};
   const key = words.join(',');
@@ -71,12 +69,10 @@ async function hgFetchAIHints(words){
 
     const data = await res.json();
 
-    if(hgState.aiHintsKey !== key) return; // a newer game has started
+    if(hgState.aiHintsKey !== key) return;
 
     if(data && data.hints && typeof data.hints === 'object'){
       hgState.aiHints = data.hints;
-
-      // If the teacher dashboard is already showing, refresh its hint preview
       const preview = document.getElementById('hg-dash-hint-display');
       const current = hgState.words[hgState.idx];
       if(preview && current) preview.textContent = 'Current Hint Preview: ' + hgGetHintForWord(current);
@@ -111,9 +107,16 @@ function hgApplyPlanGating(){
 
 function hgUpdateCount(v){
   hgState.count = parseInt(v, 10);
-  document.getElementById('hg-count-label').textContent = v;
-  document.getElementById('hg-rand-count').textContent = v;
-  document.getElementById('hg-teacher-need').textContent = v;
+  const label = document.getElementById('hg-count-label');
+  const randomCount = document.getElementById('hg-rand-count');
+  const teacherNeed = document.getElementById('hg-teacher-need');
+
+  if(label) label.textContent = v;
+  if(randomCount) randomCount.textContent = v;
+  if(teacherNeed) teacherNeed.textContent = v;
+
+  hgCheckTeacherWords();
+}
   hgCheckTeacherWords();
 }
 
@@ -133,7 +136,6 @@ function hgSetSource(src){
 
   const err = document.getElementById('hg-start-error');
   if (err) err.style.display = 'none';
-  
   hgState.source = src;
 
   ['random','teacher','ai'].forEach(s => {
@@ -148,22 +150,18 @@ document.getElementById('hg-teacher-words')?.addEventListener('input', hgCheckTe
 function hgCheckTeacherWords(){
   const ta = document.getElementById('hg-teacher-words');
   if(!ta) return;
-
   const words = ta.value.split(/[\n,]+/).map(w => w.trim()).filter(Boolean);
   const statusEl = document.getElementById('hg-teacher-status');
-
   if (statusEl) statusEl.textContent = words.length + ' of ' + hgState.count + ' words entered';
 }
 
 async function hgGenerateAI(){
   if(hgState.plan !== 'paid'){
     const statusEl0 = document.getElementById('hg-ai-status');
-
     if (statusEl0) {
       statusEl0.textContent = 'AI generation is a paid feature -- switch the demo toggle to "Paid" first.';
       statusEl0.style.color = 'var(--coral-deep)';
     }
-
     return;
   }
 
@@ -198,9 +196,7 @@ async function hgGenerateAI(){
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({topic, level, count: hgState.count})
     });
-
     if(!res.ok) throw new Error('Server responded ' + res.status);
-
     const data = await res.json();
 
     if(Array.isArray(data.words) && data.words.length){
@@ -217,21 +213,14 @@ async function hgGenerateAI(){
   if(words.length < hgState.count){
     const pool = HG_BANK.general.filter(w => !words.includes(w));
     const shuffled = pool.sort(() => Math.random() - 0.5);
-
-    while(words.length < hgState.count && shuffled.length) {
-      words.push(shuffled.pop());
-    }
-
-    if (statusEl) {
-      statusEl.textContent = 'Generated ' + hgState.count + ' words for "' + topic + '" (' + level + ') — some filled from our offline bank.';
-    }
+    while(words.length < hgState.count && shuffled.length) words.push(shuffled.pop());
+    if (statusEl) statusEl.textContent = 'Generated ' + hgState.count + ' words for "' + topic + '" (' + level + ') — some filled from our offline bank.';
   } else if (statusEl) {
     statusEl.textContent = 'Generated ' + hgState.count + ' words for "' + topic + '" (' + level + ').';
   }
 
   if (statusEl) statusEl.style.color = 'var(--teal-deep)';
   hgState.aiWords = words;
-
   const preview = document.getElementById('hg-ai-preview');
   if (preview) preview.innerHTML = words.map(w => '<span>' + w + '</span>').join('');
 
@@ -244,7 +233,6 @@ async function hgGenerateAI(){
 function hgStartGame(solo){
   const errEl = document.getElementById('hg-start-error');
   if (errEl) errEl.style.display = 'none';
-
   let words = [];
 
   if(hgState.source === 'random'){
@@ -261,7 +249,6 @@ function hgStartGame(solo){
       }
       return;
     }
-
     if(words.some(w => !/^[a-z]+$/.test(w))){
       if (errEl) {
         errEl.textContent = 'Words should only contain letters, separated by commas or lines.';
@@ -271,7 +258,6 @@ function hgStartGame(solo){
     }
   } else if(hgState.source === 'ai'){
     words = hgState.aiWords || [];
-
     if(words.length < hgState.count){
       if (errEl) {
         errEl.textContent = 'Generate your AI word list first.';
@@ -279,7 +265,6 @@ function hgStartGame(solo){
       }
       return;
     }
-
     words = words.slice(0, hgState.count);
   }
 
@@ -287,15 +272,18 @@ function hgStartGame(solo){
   hgState.idx = 0;
   hgState.score = 0;
   hgState.roundEnded = false;
+  hgFetchAIHints(words);
 
-  hgFetchAIHints(words); // background: simple A1 hints
-
-  document.getElementById('hg-word-total').textContent = words.length;
-  document.getElementById('hg-setup').style.display = 'none';
-  document.getElementById('hg-summary').style.display = 'none';
+  const wordTotal = document.getElementById('hg-word-total');
+  const setup = document.getElementById('hg-setup');
+  const summary = document.getElementById('hg-summary');
+  if(wordTotal) wordTotal.textContent = words.length;
+  if(setup) setup.style.display = 'none';
+  if(summary) summary.style.display = 'none';
 
   if(solo){
-    document.getElementById('hg-play').style.display = 'block';
+    const play = document.getElementById('hg-play');
+    if(play) play.style.display = 'block';
     hgLoadWord();
   } else {
     hgOpenRoom();
@@ -307,21 +295,24 @@ function hgLoadWord(){
   hgState.misses = 0;
   hgState.roundEnded = false;
 
-  document.getElementById('hg-word-idx').textContent = hgState.idx + 1;
-  document.getElementById('hg-score').textContent = hgState.score;
-  document.getElementById('hg-misses').textContent = '0';
-  
+  const wordIdx = document.getElementById('hg-word-idx');
+  const score = document.getElementById('hg-score');
+  const misses = document.getElementById('hg-misses');
   const fb = document.getElementById('hg-feedback');
-  fb.textContent = '';
-  fb.className = 'hg-feedback';
-  
-  document.getElementById('hg-next-wrap').style.display = 'none';
+  const nextWrap = document.getElementById('hg-next-wrap');
+
+  if(wordIdx) wordIdx.textContent = hgState.idx + 1;
+  if(score) score.textContent = hgState.score;
+  if(misses) misses.textContent = '0';
+  if(fb) {
+    fb.textContent = '';
+    fb.className = 'hg-feedback';
+  }
+  if(nextWrap) nextWrap.style.display = 'none';
 
   const hintBtn = document.getElementById('hg-hint-btn');
   const hintText = document.getElementById('hg-hint-text');
-
   if(hintBtn) hintBtn.disabled = false;
-
   if(hintText){
     hintText.style.display = 'none';
     hintText.textContent = '';
@@ -336,7 +327,6 @@ function hgLoadWord(){
   hgRenderKeyboard();
 }
 
-/* ============ HINT LOGIC ============ */
 function hgShowHint(customHintText){
   const currentWord = hgState.words[hgState.idx];
   const hintTextEl = document.getElementById('hg-hint-text');
@@ -350,27 +340,21 @@ function hgShowHint(customHintText){
     void hintTextEl.offsetWidth;
     hintTextEl.classList.add('hg-hint-pop');
   }
-
   if(hintBtnEl) hintBtnEl.disabled = true;
 }
 
 async function hgSendBroadcastHint(event){
   if(!hgLobby) return;
-
   const currentWord = hgState.words[hgState.idx];
   const hint = hgGetHintForWord(currentWord);
-
   const btn = event?.currentTarget || event?.target;
-
   if(btn) btn.disabled = true;
 
   if (window.LobbySupabase && window.LobbySupabase.setLobbyHint) {
     const success = await window.LobbySupabase.setLobbyHint(hgLobby.id, hint);
-
     if (success && btn) {
       const orig = btn.textContent;
       btn.textContent = 'Hint Broadcasted ✓';
-
       setTimeout(() => {
         btn.textContent = orig;
         btn.disabled = false;
@@ -383,458 +367,160 @@ async function hgSendBroadcastHint(event){
   }
 }
 
-/* ============ LETTER COLOURS ============ */
-const HG_COLOR_FOUND  = { bg: '#39FF14', fg: '#0b0b0b' }; // guessed correctly
-const HG_COLOR_MISSED = { bg: '#FF4B4B', fg: '#ffffff' }; // revealed after a loss
-
-function hgLetterStyle(state){
-  // state: 'found' | 'missed' | 'hidden'
-  if(state === 'found'){
-    return 'background:' + HG_COLOR_FOUND.bg + ';color:' + HG_COLOR_FOUND.fg + ';border-color:' + HG_COLOR_FOUND.bg + ';transition:background .25s,color .25s;';
-  }
-  if(state === 'missed'){
-    return 'background:' + HG_COLOR_MISSED.bg + ';color:' + HG_COLOR_MISSED.fg + ';border-color:' + HG_COLOR_MISSED.bg + ';';
-  }
-  return '';
-}
-
 function hgRenderWord(){
-  const word = hgState.words[hgState.idx];
-  const wrap = document.getElementById('hg-word-display');
-
-  if(!word || !wrap) return;
-
-  wrap.innerHTML = word.split('').map(ch => {
-    const shown = hgState.guessed.includes(ch);
-    return '<div class="hg-letter-box" style="' + hgLetterStyle(shown ? 'found' : 'hidden') + '">' + (shown ? ch : '') + '</div>';
+  const word = hgState.words[hgState.idx] || '';
+  const el = document.getElementById('hg-word-display');
+  if(!el) return;
+  el.innerHTML = word.split('').map(ch => {
+    const found = hgState.guessed.includes(ch);
+    return '<div class="hg-letter-box" style="' + hgLetterStyle(found ? 'found' : 'hidden') + '">' + (found ? ch : '') + '</div>';
   }).join('');
 }
 
-function hgRenderKeyboard(){
-  const kb = document.getElementById('hg-keyboard');
-
-  if(!kb) return;
-
-  kb.innerHTML = '';
-
-  'abcdefghijklmnopqrstuvwxyz'.split('').forEach(letter => {
-    const btn = document.createElement('button');
-    btn.className = 'hg-key';
-    btn.textContent = letter;
-    btn.onclick = () => hgGuess(letter, btn);
-    kb.appendChild(btn);
-  });
+function hgLetterStyle(state){
+  if(state === 'found') return 'background:#39FF14;color:#0b0b0b;border-color:#39FF14;';
+  if(state === 'missed') return 'background:#FF4B4B;color:#fff;border-color:#FF4B4B;';
+  return 'background:rgba(255,255,255,0.06);color:#fff;border-color:rgba(255,255,255,0.2);';
 }
 
-function hgGuess(letter, btn){
-  if(hgState.roundEnded) return;
-  if(hgState.guessed.includes(letter)) return;
+function hgRenderKeyboard(){
+  const keyboard = document.getElementById('hg-keyboard');
+  if(!keyboard) return;
+  const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+  keyboard.innerHTML = letters.map(ch => {
+    const used = hgState.guessed.includes(ch);
+    const disabled = used || hgState.roundEnded;
+    return '<button class="hg-key" ' + (disabled ? 'disabled' : '') + ' onclick="hgGuessLetter(\'' + ch + '\')">' + ch.toUpperCase() + '</button>';
+  }).join('');
+}
+
+function hgGuessLetter(letter){
+  if(hgState.roundEnded || hgState.guessed.includes(letter)) return;
+  const word = hgState.words[hgState.idx];
+  if(!word) return;
 
   hgState.guessed.push(letter);
-
-  const word = hgState.words[hgState.idx];
-
-  if(word.includes(letter)){
-    btn.classList.add('correct');
-    btn.disabled = true;
-    hgRenderWord();
-    
-    const solved = word.split('').every(ch => hgState.guessed.includes(ch));
-
-    if(solved){
-      hgState.score++;
-      hgWordEnd(true); // plays the "correct answer" sound
-    } else {
-      AwalSounds.play('correctLetter');
-    }
+  const correct = word.includes(letter);
+  if(correct){
+    hgState.score += 10;
+    AwalSounds.play('correctLetter');
   } else {
-    btn.classList.add('wrong');
-    btn.disabled = true;
-
     hgState.misses++;
-    document.getElementById('hg-misses').textContent = hgState.misses;
+    AwalSounds.play('incorrectLetter');
+  }
 
-    const partId = HG_PARTS[hgState.misses - 1];
+  const missesEl = document.getElementById('hg-misses');
+  const scoreEl = document.getElementById('hg-score');
+  if(missesEl) missesEl.textContent = hgState.misses;
+  if(scoreEl) scoreEl.textContent = hgState.score;
 
-    if(partId){
-      const el = document.getElementById('hg-part-' + partId);
-      if(el) el.style.display = 'block';
-    }
+  hgRenderWord();
+  hgRenderKeyboard();
 
-    if(hgState.misses >= 6){
-      hgWordEnd(false); // plays the "incorrect answer" sound
-    } else {
-      AwalSounds.play('incorrectLetter');
-    }
+  if([...word].every(ch => hgState.guessed.includes(ch))){
+    hgEndRound(true);
+  } else if(hgState.misses >= 6){
+    hgEndRound(false);
   }
 }
 
-function hgWordEnd(won){
+function hgEndRound(won){
   if(hgState.roundEnded) return;
-
   hgState.roundEnded = true;
-
-  document.querySelectorAll('.hg-key').forEach(k => k.disabled = true);
-  
-  const fb = document.getElementById('hg-feedback');
   const word = hgState.words[hgState.idx];
-  const wordDisplay = document.getElementById('hg-word-display');
-  const wordWrap = wordDisplay ? wordDisplay.parentElement : null;
+  const feedback = document.getElementById('hg-feedback');
+  const nextWrap = document.getElementById('hg-next-wrap');
+  const hintBtn = document.getElementById('hg-hint-btn');
 
-  if (wordDisplay) {
-    wordDisplay.innerHTML = word.split('').map(ch => {
-      const state = hgState.guessed.includes(ch) ? 'found' : (won ? 'found' : 'missed');
-      return '<div class="hg-letter-box" style="' + hgLetterStyle(state) + '">' + ch + '</div>';
-    }).join('');
-  }
+  if(hintBtn) hintBtn.disabled = true;
+  hgRenderKeyboard();
 
   if(won){
+    if(feedback){
+      feedback.textContent = '🎉 Correct! The word was ' + word.toUpperCase() + '.';
+      feedback.className = 'hg-feedback win';
+    }
     AwalSounds.play('correctAnswer');
-    fb.textContent = '🎉 Correct! The word was "' + word + '"';
-    fb.className = 'hg-feedback win';
-
-    if (wordWrap) hgPlayWinAnimation(wordWrap);
   } else {
+    if(feedback){
+      feedback.textContent = 'The word was ' + word.toUpperCase() + '. Better luck next time!';
+      feedback.className = 'hg-feedback lose';
+    }
+    hgRevealWord(word);
     AwalSounds.play('incorrectAnswer');
-    fb.textContent = '💀 Out of guesses. The word was "' + word + '"';
-    fb.className = 'hg-feedback lose';
-
-    if (wordWrap) hgPlayLoseAnimation(wordWrap);
   }
 
-  const isLast = hgState.idx >= hgState.words.length - 1;
-  const nextBtn = document.getElementById('hg-next-btn');
-
-  if(nextBtn) nextBtn.textContent = isLast ? 'See results →' : 'Next word →';
-
-  document.getElementById('hg-next-wrap').style.display = 'block';
+  if(nextWrap) nextWrap.style.display = 'block';
 }
 
-function hgPlayWinAnimation(container){
-  container.classList.add('hg-anim-win');
-  setTimeout(() => container.classList.remove('hg-anim-win'), 550);
-
-  const wrap = document.createElement('div');
-  wrap.className = 'hg-confetti-wrap';
-
-  const colors = ['#FF4B4B','#39FF14','#00F3FF','#FFD23F','#A855F7'];
-
-  for(let i = 0; i < 18; i++){
-    const piece = document.createElement('span');
-    piece.className = 'hg-confetti';
-    piece.style.left = Math.random() * 100 + '%';
-    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-    piece.style.animationDelay = (Math.random() * 0.25) + 's';
-    piece.style.animationDuration = (0.9 + Math.random() * 0.5) + 's';
-    wrap.appendChild(piece);
-  }
-
-  container.appendChild(wrap);
-  setTimeout(() => wrap.remove(), 1600);
-}
-
-function hgPlayLoseAnimation(container){
-  container.classList.add('hg-anim-lose');
-  setTimeout(() => container.classList.remove('hg-anim-lose'), 500);
-
-  const flash = document.createElement('div');
-  flash.className = 'hg-lose-flash';
-
-  container.appendChild(flash);
-  setTimeout(() => flash.remove(), 550);
+function hgRevealWord(word){
+  const el = document.getElementById('hg-word-display');
+  if(!el) return;
+  el.innerHTML = word.split('').map(ch => {
+    const found = hgState.guessed.includes(ch);
+    return '<div class="hg-letter-box" style="' + hgLetterStyle(found ? 'found' : 'missed') + '">' + ch + '</div>';
+  }).join('');
 }
 
 function hgNextWord(){
   if(!hgState.roundEnded) return;
-
   if(hgState.idx >= hgState.words.length - 1){
     hgShowSummary();
     return;
   }
-
   hgState.idx++;
   hgLoadWord();
 }
 
 function hgShowSummary(){
-  document.getElementById('hg-play').style.display = 'none';
-  document.getElementById('hg-summary').style.display = 'block';
-  document.getElementById('hg-final-score').textContent = hgState.score;
-  document.getElementById('hg-final-total').textContent = hgState.words.length;
+  const play = document.getElementById('hg-play');
+  const summary = document.getElementById('hg-summary');
+  const finalScore = document.getElementById('hg-final-score');
+  const finalTotal = document.getElementById('hg-final-total');
+  if(play) play.style.display = 'none';
+  if(summary){
+    summary.hidden = false;
+    summary.style.setProperty('display', 'block', 'important');
+  }
+  if(finalScore) finalScore.textContent = hgState.score;
+  if(finalTotal) finalTotal.textContent = hgState.words.length;
 }
 
 function hgResetToSetup(){
   hgStopDashboardTimer();
-
   hgState.roundEnded = false;
 
-  document.getElementById('hg-play').style.display = 'none';
-  document.getElementById('hg-summary').style.display = 'none';
-  document.getElementById('hg-room').style.display = 'none';
-  document.getElementById('hg-dashboard').style.display = 'none';
+  ['hg-play','hg-summary','hg-room','hg-dashboard'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+  });
 
   if(hgProgressChannel && window.LobbySupabase){
     window.LobbySupabase.unsubscribe(hgProgressChannel);
     hgProgressChannel = null;
   }
-
   if(hgLobbyChannel && window.LobbySupabase){
     window.LobbySupabase.unsubscribe(hgLobbyChannel);
     hgLobbyChannel = null;
   }
-
   if(hgPresenceChannel && window.LobbySupabase){
     window.LobbySupabase.unsubscribe(hgPresenceChannel);
     hgPresenceChannel = null;
   }
 
   hgLobby = null;
-  document.getElementById('hg-setup').style.display = 'block';
+  const setup = document.getElementById('hg-setup');
+  if(setup) setup.style.display = 'block';
 }
 
-/* ============ PLAY AGAIN ============ */
-async function hgPlayAgain(){
-  const button = document.getElementById('hg-play-again-btn');
-  const note = document.getElementById('hg-summary-note');
-
-  if(button) button.disabled = true;
-
-  try{
-    if(hgLobby && window.LobbySupabase){
-      if(typeof window.LobbySupabase.restartLobbyGame !== 'function'){
-        throw new Error('Please update lobby.js before replaying.');
-      }
-
-      if(note) note.textContent = 'Restarting the game in the same room…';
-
-      const restartedLobby = await window.LobbySupabase.restartLobbyGame(hgLobby.id, {
-        words: hgState.words,
-        timeLimit: hgState.timeLimit
-      });
-
-      if(!restartedLobby){
-        throw new Error('Could not restart the room. Please try again.');
-      }
-
-      hgLobby = restartedLobby;
-      hgState.idx = 0;
-      hgState.score = 0;
-      hgState.guessed = [];
-      hgState.misses = 0;
-      hgState.roundEnded = false;
-      hgTimerExpiryHandled = false;
-
-      hgRoom.students.forEach(student => {
-        student.guessed = [];
-        student.misses = 0;
-        student.done = false;
-        student.won = false;
-      });
-
-      document.getElementById('hg-summary').style.display = 'none';
-      document.getElementById('hg-play').style.display = 'none';
-      document.getElementById('hg-room').style.display = 'none';
-      document.getElementById('hg-dashboard').style.display = 'block';
-      document.getElementById('hg-dash-word-total').textContent = hgState.words.length;
-
-      if(hgProgressChannel){
-        window.LobbySupabase.unsubscribe(hgProgressChannel);
-      }
-
-      hgProgressChannel = window.LobbySupabase.subscribeToProgress(hgLobby.id, row => {
-        if(!row || row.word_index !== hgState.idx) return;
-        hgApplyProgressRow(row);
-      });
-
-      hgLoadDashboardWord();
-
-      if(note) note.textContent = 'Same room, same code — your students can play again.';
-      return;
-    }
-
-    // Replay solo practice.
-    hgState.idx = 0;
-    hgState.score = 0;
-    hgState.guessed = [];
-    hgState.misses = 0;
-    hgState.roundEnded = false;
-
-    document.getElementById('hg-summary').style.display = 'none';
-    document.getElementById('hg-dashboard').style.display = 'none';
-    document.getElementById('hg-play').style.display = 'block';
-
-    hgLoadWord();
-
-  } catch(error){
-    console.error('[hgPlayAgain]', error);
-    if(note) note.textContent = error.message || 'Could not restart the game. Please try again.';
-  } finally {
-    if(button) button.disabled = false;
-  }
-}
 /* ============ CLASSROOM ROOM MODE ============ */
 const HG_STUDENT_COLORS = ['#00F3FF','#39FF14','#A855F7','#FFB020','#FF4B4B','#FFD23F'];
-
-const hgRoom = {
-  code: null,
-  students: []
-};
+const hgRoom = { code: null, students: [] };
 
 let hgLobby = null;
 let hgLobbyChannel = null;
 let hgProgressChannel = null;
-let hgPresenceChannel = null;   // tells us when a student's tab closes
-
-async function hgOpenRoom(){
-  hgRoom.students = [];
-
-  document.getElementById('hg-room-code').textContent = '••••••';
-  document.getElementById('hg-room-link').textContent = 'Creating room…';
-  document.getElementById('hg-room').style.display = 'block';
-  document.getElementById('hg-begin-btn').disabled = true;
-
-  hgRenderRoster();
-
-  if(!window.LobbySupabase){
-    let tries = 0;
-
-    while (!window.LobbySupabase && tries < 40) {
-      await new Promise(r => setTimeout(r, 50));
-      tries++;
-    }
-  }
-
-  if (!window.LobbySupabase) {
-    document.getElementById('hg-room-link').textContent = 'Lobby client not ready. Please try again.';
-    return;
-  }
-
-  const lobby = await window.LobbySupabase.createLobby('hangman', hgState.timeLimit);
-
-  if(!lobby){
-    document.getElementById('hg-room-link').textContent = 'Could not create the room -- check your connection and try again.';
-    return;
-  }
-
-  hgLobby = lobby;
-
-  document.getElementById('hg-room-code').textContent = lobby.code;
-  document.getElementById('hg-room-link').textContent = window.location.origin + '/join.html?code=' + lobby.code;
-
-  if(hgPresenceChannel) window.LobbySupabase.unsubscribe(hgPresenceChannel);
-  hgPresenceChannel = window.LobbySupabase.watchPresence(lobby.id, hgHandleStudentLeft);
-
-  if(hgLobbyChannel) window.LobbySupabase.unsubscribe(hgLobbyChannel);
-
-  hgLobbyChannel = window.LobbySupabase.subscribeToLobby(lobby.id, (updatedLobby) => {
-    hgLobby = updatedLobby;
-
-    // Play join / leave sounds by comparing the old and new player lists
-    const prevIds = hgRoom.students.map(s => s.id);
-    const newIds = (updatedLobby.players || []).map(p => p.id);
-
-    if(newIds.some(id => !prevIds.includes(id))){
-      AwalSounds.play('join');
-    } else if(prevIds.some(id => !newIds.includes(id))){
-      AwalSounds.play('leave');
-    }
-
-    hgRoom.students = (updatedLobby.players || []).map((p, i) => ({
-      id: p.id,
-      name: p.name,
-      color: HG_STUDENT_COLORS[i % HG_STUDENT_COLORS.length],
-      guessed: [],
-      misses: 0,
-      done: false,
-      won: false
-    }));
-
-    hgRenderRoster();
-  });
-}
-
-function hgCopyRoomLink(){
-  const link = document.getElementById('hg-room-link').textContent;
-
-  navigator.clipboard.writeText(link).then(() => {
-    const btn = document.getElementById('hg-room-copy-btn');
-
-    if (!btn) return;
-
-    const original = btn.textContent;
-    btn.textContent = 'Copied ✓';
-
-    setTimeout(() => {
-      btn.textContent = original;
-    }, 1600);
-  }).catch(() => {});
-}
-
-function hgRenderRoster(){
-  const wrap = document.getElementById('hg-roster');
-
-  if (!wrap) return;
-
-  let html = '';
-  const count = hgRoom.students.length;
-  const displayCount = Math.max(4, count);
-
-  for(let i = 0; i < displayCount; i++){
-    const student = hgRoom.students[i];
-
-    if(student){
-      const initial = student.name ? student.name.charAt(0).toUpperCase() : '?';
-
-      html += '<div class="hg-seat filled">' +
-        '<div class="hg-seat-avatar" style="background:' + student.color + ';">' + initial + '</div>' +
-        '<div class="hg-seat-name">' + student.name + '</div>' +
-      '</div>';
-    } else {
-      html += '<div class="hg-seat">' +
-        '<div class="hg-seat-name" style="opacity:0.6;">Waiting for a student…</div>' +
-      '</div>';
-    }
-  }
-
-  wrap.innerHTML = html;
-
-  const beginBtn = document.getElementById('hg-begin-btn');
-
-  if (beginBtn) {
-    beginBtn.disabled = count === 0;
-    beginBtn.textContent = '▶ Begin round (' + count + ' student' + (count === 1 ? '' : 's') + ' joined)';
-  }
-}
-
-async function hgBeginRound(){
-  if(hgRoom.students.length === 0) return;
-
-  document.getElementById('hg-room').style.display = 'none';
-  document.getElementById('hg-dashboard').style.display = 'block';
-  document.getElementById('hg-dash-word-total').textContent = hgState.words.length;
-
-  if(hgLobby){
-    const startedLobby = await window.LobbySupabase.startLobbyGame(
-      hgLobby.id,
-      hgState.words,
-      hgState.timeLimit
-    );
-
-    if(startedLobby) hgLobby = startedLobby;
-  }
-
-  if(hgProgressChannel) window.LobbySupabase.unsubscribe(hgProgressChannel);
-
-  if(hgLobby){
-    hgProgressChannel = window.LobbySupabase.subscribeToProgress(hgLobby.id, (row) => {
-      if(!row || row.word_index !== hgState.idx) return;
-      hgApplyProgressRow(row);
-    });
-  }
-
-  hgLoadDashboardWord();
-}
-
+let hgPresenceChannel = null;
 let hgDashboardTimer = null;
 let hgTimerExpiryHandled = false;
 
@@ -851,113 +537,161 @@ function hgFormatTime(seconds){
   return mins + ':' + String(secs).padStart(2, '0');
 }
 
-function hgStartDashboardTimer(){
-  hgStopDashboardTimer();
+async function hgOpenRoom(){
+  hgRoom.students = [];
+  const codeEl = document.getElementById('hg-room-code');
+  const linkEl = document.getElementById('hg-room-link');
+  const roomEl = document.getElementById('hg-room');
+  const beginBtn = document.getElementById('hg-begin-btn');
 
-  const timerEl = document.getElementById('hg-dash-timer');
-  const limit = Number(hgLobby?.time_limit || hgState.timeLimit || 0);
-  const startedAt = hgLobby?.round_started_at;
+  if(codeEl) codeEl.textContent = '••••••';
+  if(linkEl) linkEl.textContent = 'Creating room…';
+  if(roomEl) roomEl.style.display = 'block';
+  if(beginBtn) beginBtn.disabled = true;
+  hgRenderRoster();
 
-  if(!timerEl) return;
+  if(!window.LobbySupabase){
+    let tries = 0;
+    while(!window.LobbySupabase && tries < 40){
+      await new Promise(r => setTimeout(r, 50));
+      tries++;
+    }
+  }
 
-  if(!limit || !startedAt){
-    timerEl.textContent = 'No time limit';
-    timerEl.style.color = '';
+  if(!window.LobbySupabase){
+    if(linkEl) linkEl.textContent = 'Lobby client not ready. Please try again.';
     return;
   }
 
-  hgTimerExpiryHandled = false;
+  const lobby = await window.LobbySupabase.createLobby('hangman', hgState.timeLimit);
+  if(!lobby){
+    if(linkEl) linkEl.textContent = 'Could not create the room -- check your connection and try again.';
+    return;
+  }
 
-  const tick = () => {
-    const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
-    const remaining = Math.max(0, limit - elapsed);
+  hgLobby = lobby;
+  hgRoom.code = lobby.code;
+  if(codeEl) codeEl.textContent = lobby.code;
+  if(linkEl) linkEl.textContent = window.location.origin + '/join.html?code=' + lobby.code;
 
-    timerEl.textContent = '⏱ ' + hgFormatTime(remaining);
-    timerEl.style.color = remaining <= 10 ? 'var(--coral-deep)' : '';
+  if(hgPresenceChannel) window.LobbySupabase.unsubscribe(hgPresenceChannel);
+  hgPresenceChannel = window.LobbySupabase.watchPresence(lobby.id, hgHandleStudentLeft);
+  if(hgLobbyChannel) window.LobbySupabase.unsubscribe(hgLobbyChannel);
 
-    if(remaining <= 0){
-      hgStopDashboardTimer();
-      hgHandleTimeExpired();
-    }
-  };
+  hgLobbyChannel = window.LobbySupabase.subscribeToLobby(lobby.id, updatedLobby => {
+    hgLobby = updatedLobby;
+    const prevIds = hgRoom.students.map(s => s.id);
+    const newIds = (updatedLobby.players || []).map(p => p.id);
+    if(newIds.some(id => !prevIds.includes(id))) AwalSounds.play('join');
+    else if(prevIds.some(id => !newIds.includes(id))) AwalSounds.play('leave');
 
-  tick();
-  hgDashboardTimer = setInterval(tick, 250);
+    hgRoom.students = (updatedLobby.players || []).map((p, i) => ({
+      id: p.id,
+      name: p.name,
+      color: HG_STUDENT_COLORS[i % HG_STUDENT_COLORS.length],
+      guessed: [],
+      misses: 0,
+      done: false,
+      won: false
+    }));
+    hgRenderRoster();
+  });
 }
 
-async function hgHandleTimeExpired(){
-  if(hgTimerExpiryHandled || hgState.roundEnded) return;
+function hgCopyRoomLink(){
+  const link = document.getElementById('hg-room-link')?.textContent || '';
+  if(!link) return;
+  navigator.clipboard.writeText(link).then(() => {
+    const btn = document.getElementById('hg-room-copy-btn');
+    if(!btn) return;
+    const original = btn.textContent;
+    btn.textContent = 'Copied ✓';
+    setTimeout(() => { btn.textContent = original; }, 1600);
+  }).catch(() => {});
+}
 
-  hgTimerExpiryHandled = true;
+function hgRenderRoster(){
+  const wrap = document.getElementById('hg-roster');
+  if(!wrap) return;
+  let html = '';
+  const count = hgRoom.students.length;
+  const displayCount = Math.max(4, count);
 
-  const word = hgState.words[hgState.idx];
-  const unfinished = hgRoom.students.filter(s => !s.done);
+  for(let i = 0; i < displayCount; i++){
+    const student = hgRoom.students[i];
+    if(student){
+      const initial = student.name ? student.name.charAt(0).toUpperCase() : '?';
+      html += '<div class="hg-seat filled"><div class="hg-seat-avatar" style="background:' + student.color + ';">' + initial + '</div><div class="hg-seat-name">' + student.name + '</div></div>';
+    } else {
+      html += '<div class="hg-seat"><div class="hg-seat-name" style="opacity:0.6;">Waiting for a student…</div></div>';
+    }
+  }
+  wrap.innerHTML = html;
+  const beginBtn = document.getElementById('hg-begin-btn');
+  if(beginBtn){
+    beginBtn.disabled = count === 0;
+    beginBtn.textContent = '▶ Begin round (' + count + ' student' + (count === 1 ? '' : 's') + ' joined)';
+  }
+}
 
-  if(!unfinished.length) return;
+async function hgBeginRound(){
+  if(hgRoom.students.length === 0) return;
+  const room = document.getElementById('hg-room');
+  const dashboard = document.getElementById('hg-dashboard');
+  if(room) room.style.display = 'none';
+  if(dashboard) dashboard.style.display = 'block';
 
-  unfinished.forEach(s => {
-    hgFinishStudent(s, false, word, true);
-  });
+  const total = document.getElementById('hg-dash-word-total');
+  if(total) total.textContent = hgState.words.length;
 
   if(hgLobby && window.LobbySupabase){
-    await Promise.all(unfinished.map(s =>
-      window.LobbySupabase.upsertProgress(
-        hgLobby.id,
-        s.id,
-        s.name,
-        hgState.idx,
-        s.guessed || [],
-        s.misses || 0,
-        true,
-        false
-      )
-    ));
+    const startedLobby = await window.LobbySupabase.startLobbyGame(hgLobby.id, hgState.words, hgState.timeLimit);
+    if(startedLobby) hgLobby = startedLobby;
+  }
+
+  hgState.idx = 0;
+  if(hgLobby && window.LobbySupabase?.setLobbyWordIndex){
+    const updated = await window.LobbySupabase.setLobbyWordIndex(hgLobby.id, 0);
+    if(updated) hgLobby = updated;
+  }
+
+  hgLoadDashboardWord();
+  if(hgLobby && window.LobbySupabase){
+    if(hgProgressChannel) window.LobbySupabase.unsubscribe(hgProgressChannel);
+    hgProgressChannel = window.LobbySupabase.subscribeToProgress(hgLobby.id, row => hgApplyProgressRow(row));
   }
 }
 
 function hgLoadDashboardWord(){
   const word = hgState.words[hgState.idx];
+  if(!word) return;
 
   hgState.roundEnded = false;
   hgTimerExpiryHandled = false;
   hgStopDashboardTimer();
 
-  document.getElementById('hg-dash-word-idx').textContent = hgState.idx + 1;
-  document.getElementById('hg-dash-word-len').textContent = word.length;
-  document.getElementById('hg-dash-next-btn').style.display = 'none';
+  const wordIdx = document.getElementById('hg-dash-word-idx');
+  const wordLen = document.getElementById('hg-dash-word-len');
+  const nextBtn = document.getElementById('hg-dash-next-btn');
+  if(wordIdx) wordIdx.textContent = hgState.idx + 1;
+  if(wordLen) wordLen.textContent = word.length;
+  if(nextBtn) nextBtn.style.display = 'none';
 
   let hintWrap = document.getElementById('hg-dash-hint-wrap');
-
   if(!hintWrap){
     hintWrap = document.createElement('div');
     hintWrap.id = 'hg-dash-hint-wrap';
     hintWrap.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;';
-    
     const gridContainer = document.getElementById('hg-dash-grid');
-
-    if(gridContainer && gridContainer.parentNode){
-      gridContainer.parentNode.insertBefore(hintWrap, gridContainer);
-    } else {
-      const dashPanel = document.getElementById('hg-dashboard');
-      if(dashPanel) dashPanel.appendChild(hintWrap);
-    }
+    if(gridContainer && gridContainer.parentNode) gridContainer.parentNode.insertBefore(hintWrap, gridContainer);
+    else document.getElementById('hg-dashboard')?.appendChild(hintWrap);
   }
 
-  hintWrap.innerHTML = `
-    <button id="hg-dash-hint-btn" class="btn btn-ghost btn-sm">💡 Broadcast Hint to Class</button>
-    <span id="hg-dash-hint-display" style="font-size:0.9rem;opacity:0.7;font-family:monospace;"></span>
-  `;
-
+  hintWrap.innerHTML = '<button id="hg-dash-hint-btn" class="btn btn-ghost btn-sm">💡 Broadcast Hint to Class</button><span id="hg-dash-hint-display" style="font-size:0.9rem;opacity:0.7;font-family:monospace;"></span>';
   const hintBtn = document.getElementById('hg-dash-hint-btn');
-
-  if (hintBtn) hintBtn.onclick = hgSendBroadcastHint;
-
-  const dashHintDisplay = document.getElementById('hg-dash-hint-display');
-
-  if(dashHintDisplay){
-    const hint = hgGetHintForWord(word);
-    dashHintDisplay.textContent = 'Current Hint Preview: ' + hint;
-  }
+  if(hintBtn) hintBtn.onclick = hgSendBroadcastHint;
+  const hintDisplay = document.getElementById('hg-dash-hint-display');
+  if(hintDisplay) hintDisplay.textContent = 'Current Hint Preview: ' + hgGetHintForWord(word);
 
   hgRoom.students.forEach(s => {
     s.guessed = [];
@@ -967,29 +701,21 @@ function hgLoadDashboardWord(){
   });
 
   const grid = document.getElementById('hg-dash-grid');
-
-  if (grid) {
+  if(grid){
     grid.innerHTML = hgRoom.students.map(s => {
       const initial = s.name ? s.name.charAt(0).toUpperCase() : '?';
-
       return '<div class="hg-dash-card" id="' + s.id + '">' +
-        '<div class="hg-dash-head">' +
-          '<div class="hg-dash-avatar" style="background:' + s.color + ';" tabindex="0" aria-label="' + s.name + '">' + initial + '</div>' +
-          '<div class="hg-dash-name">' + s.name + '</div>' +
-          '<div class="hg-dash-status" id="' + s.id + '-status">guessing…</div>' +
-        '</div>' +
-        '<div class="hg-dash-word" id="' + s.id + '-word"></div>' +
-        '<div class="hg-dash-guesses" id="' + s.id + '-guesses"></div>' +
-        '<div class="hg-dash-misses"><span id="' + s.id + '-misses">0</span> / 6 wrong guesses</div>' +
-      '</div>';
+        '<div class="hg-dash-head"><div class="hg-dash-avatar" style="background:' + s.color + ';" tabindex="0" aria-label="' + s.name + '">' + initial + '</div>' +
+        '<div class="hg-dash-name">' + s.name + '</div><div class="hg-dash-status" id="' + s.id + '-status">guessing…</div></div>' +
+        '<div class="hg-dash-word" id="' + s.id + '-word"></div><div class="hg-dash-guesses" id="' + s.id + '-guesses"></div>' +
+        '<div class="hg-dash-misses"><span id="' + s.id + '-misses">0</span> / 6 wrong guesses</div></div>';
     }).join('');
   }
 
   hgRoom.students.forEach(s => hgRenderDashboardCard(s, word));
-
   hgStartDashboardTimer();
 
-  if(hgLobby && window.LobbySupabase){
+  if(hgLobby && window.LobbySupabase?.fetchProgress){
     window.LobbySupabase.fetchProgress(hgLobby.id, hgState.idx).then(rows => {
       if(Array.isArray(rows)) rows.forEach(row => hgApplyProgressRow(row));
     }).catch(err => console.error('[hgLoadDashboardWord] fetchProgress error:', err));
@@ -998,176 +724,23 @@ function hgLoadDashboardWord(){
 
 function hgApplyProgressRow(row){
   const student = hgRoom.students.find(s => s.id === row.player_id);
-
   if(!student || student.done) return;
-
   const word = hgState.words[hgState.idx];
-
   const prevGuessCount = (student.guessed || []).length;
   const prevMisses = student.misses || 0;
-
   student.guessed = row.guessed || [];
   student.misses = row.misses || 0;
 
-  // Teacher-side sounds for a student's individual guesses (not the final one,
-  // since hgFinishStudent plays the answer sound below)
   if(!row.done && student.guessed.length > prevGuessCount){
     AwalSounds.play(student.misses > prevMisses ? 'incorrectLetter' : 'correctLetter');
   }
 
   hgRenderDashboardCard(student, word);
-
   if(row.done) hgFinishStudent(student, !!row.won, word);
 }
 
 function hgRenderDashboardCard(student, word){
   const wordEl = document.getElementById(student.id + '-word');
-
   if(!wordEl) return;
-
-  // Teacher sees the complete word immediately. Letters the student has
-  // guessed turn green; unguessed ones are dimmed. If the student lost,
-  // the letters they never found are revealed in red.
   const lost = student.done && !student.won;
-
-  wordEl.innerHTML = word.split('').map(ch => {
-    const found = student.guessed.includes(ch);
-    let style;
-
-    if(found){
-      style = hgLetterStyle('found');
-    } else if(lost){
-      style = hgLetterStyle('missed');
-    } else {
-      style = 'opacity:0.45;';
-    }
-
-    return '<div class="hg-dash-letter" style="' + style + '">' + ch + '</div>';
-  }).join('');
-  
-  const guessesEl = document.getElementById(student.id + '-guesses');
-
-  if (guessesEl) {
-    guessesEl.textContent = student.guessed.length
-      ? 'Guesses: ' + student.guessed.join(', ').toUpperCase()
-      : '';
-  }
-
-  const missesEl = document.getElementById(student.id + '-misses');
-
-  if (missesEl) missesEl.textContent = student.misses;
-}
-
-function hgFinishStudent(student, won, word, timedOut){
-  student.done = true;
-  student.won = won;
-
-  const card = document.getElementById(student.id);
-  const statusEl = document.getElementById(student.id + '-status');
-
-  if(!card || !statusEl) return;
-
-  if(won){
-    AwalSounds.play('correctAnswer');
-    card.classList.remove('hg-lost');
-    card.classList.add('hg-won');
-    statusEl.textContent = 'SOLVED ✓';
-    hgPlayWinAnimation(card);
-  } else {
-    AwalSounds.play('incorrectAnswer');
-    card.classList.remove('hg-won');
-    card.classList.add('hg-lost');
-    statusEl.textContent = timedOut ? 'TIME UP' : 'OUT OF GUESSES';
-    
-    // Re-render so found letters stay green and missed ones show in red
-    hgRenderDashboardCard(student, word);
-
-    hgPlayLoseAnimation(card);
-  }
-
-  if(hgRoom.students.every(s => s.done)){
-    hgState.roundEnded = true;
-    hgStopDashboardTimer();
-
-    const isLast = hgState.idx >= hgState.words.length - 1;
-    const nextBtn = document.getElementById('hg-dash-next-btn');
-
-    if (nextBtn) {
-      nextBtn.textContent = isLast ? 'See results →' : 'Next word →';
-      nextBtn.style.display = 'inline-flex';
-    }
-  }
-}
-
-/* ============ STUDENT LEFT THE LOBBY (tab closed) ============ */
-function hgHandleStudentLeft(playerId){
-  // Wait a few seconds: a phone that briefly loses signal reconnects by itself.
-  setTimeout(async () => {
-    if(!hgLobby || !window.LobbySupabase) return;
-    if(hgLobby.status !== 'waiting') return; // only the waiting room
-    if(window.LobbySupabase.isPresent(hgPresenceChannel, playerId)) return; // came back
-
-    // Removing them updates the lobby, which refreshes the roster and plays
-    // the leave sound through the existing lobby subscription.
-    await window.LobbySupabase.leaveLobby(hgLobby.id, playerId);
-  }, 4000);
-}
-
-
-async function hgDashNextWord(){
-  if(!hgState.roundEnded) return;
-
-  hgStopDashboardTimer();
-
-  if(hgState.idx >= hgState.words.length - 1){
-    const dashboard = document.getElementById('hg-dashboard');
-    const summary = document.getElementById('hg-summary');
-    const summaryLine = document.getElementById('hg-summary-line');
-    const summaryNote = document.getElementById('hg-summary-note');
-
-    const winners = hgRoom.students.filter(s => s.won).length;
-
-    if(summaryLine){
-      summaryLine.innerHTML =
-        'Game complete! <strong>' + winners + '</strong> of <strong>' +
-        hgRoom.students.length + '</strong> students solved the final word.';
-    }
-
-    if(summaryNote){
-      summaryNote.textContent =
-        'Play another round with the same students and room code, or choose Change settings.';
-    }
-
-    if(dashboard) dashboard.style.display = 'none';
-
-    if(summary){
-      summary.hidden = false;
-      summary.style.setProperty('display', 'block', 'important');
-      summary.style.visibility = 'visible';
-    }else{
-      console.error('Hangman summary element #hg-summary is missing.');
-      if(dashboard) dashboard.style.display = 'block';
-      return;
-    }
-
-    if(hgProgressChannel && window.LobbySupabase){
-      window.LobbySupabase.unsubscribe(hgProgressChannel);
-      hgProgressChannel = null;
-    }
-
-    return;
-  }
-
-  hgState.idx++;
-
-  if(hgLobby && window.LobbySupabase){
-    const nextLobby = await window.LobbySupabase.setLobbyWordIndex(
-      hgLobby.id,
-      hgState.idx
-    );
-
-    if(nextLobby) hgLobby = nextLobby;
-  }
-
-  hgLoadDashboardWord();
-}
+  wordEl.innerHTML = word
