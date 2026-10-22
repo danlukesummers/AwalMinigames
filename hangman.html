@@ -4,6 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hangman — AWAL Minigames</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Keep your existing hangman.html code and replace only the summary screen with the section below. -->
+
+  <section id="hg-summary" style="display:none;">
+    <h2>Round complete!</h2>
+    <div id="hg-summary-content"></div>
+    <p id="hg-summary-note">Play another round with the same students and room code, or return to setup to change the game.</p>
+    <button class="btn btn-primary" id="hg-play-again-btn" onclick="hgPlayAgain()">🔁 Play again</button>
+    <button class="btn btn-ghost" style="margin-left:8px;" onclick="hgResetToSetup()">Change settings</button>
+  </section>
+
+  <script type="module" src="lobby.js"></script>
+  <script src="main.js"></script>
+  <script src="hangman.js"></script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hangman — AWAL Minigames</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
@@ -231,15 +254,14 @@
           </div>
         </div>
 
-        <!-- SUMMARY SCREEN -->
-        <div id="hg-summary" class="hg-panel" style="display:none; text-align:center;">
-          <div style="font-size:44px; margin-bottom:6px;">🎉</div>
-          <h2 style="font-size:26px; margin-bottom:10px;">Game complete!</h2>
-          <p style="color:var(--ink-soft); font-size:16px; margin-bottom:6px;" id="hg-summary-line">You got <strong id="hg-final-score">0</strong> out of <strong id="hg-final-total">6</strong> words.</p>
-          <p style="color:var(--ink-soft); font-size:14px; margin-bottom:28px;" id="hg-summary-note">Nice work! Start a new room whenever you're ready for another round.</p>
-          <button class="btn btn-primary" onclick="hgResetToSetup()">🔁 Play again</button>
-        </div>
-
+       <!-- SUMMARY SCREEN -->
+        <section id="hg-summary" style="display:none;">
+          <h2>Round complete!</h2>
+          <div id="hg-summary-content"></div>
+          <p id="hg-summary-note">Play another round with the same students and room code, or return to setup to change the game.</p>
+          <button class="btn btn-primary" id="hg-play-again-btn" onclick="hgPlayAgain()">🔁 Play again</button>
+          <button class="btn btn-ghost" style="margin-left:8px;" onclick="hgResetToSetup()">Change settings</button>
+        </section>
       </div>
     </div>
   </div>
@@ -247,7 +269,13 @@
 
 <footer>
   <div class="wrap" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; width:100%;">
-    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;"><svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;"><path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>AWAL</a>
+    <a href="index.html" class="logo" style="text-decoration:none;color:inherit;">
+      <svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true" focusable="false" style="flex-shrink:0;">
+        <path d="M20 6 L34 32 L6 32 Z" fill="none" stroke="#C837E8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M20 34 L6 8 L34 8 Z" fill="none" stroke="#4DD8F0" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      AWAL
+    </a>
     <div>© 2026 AWAL. Made for teachers who'd rather listen than lecture.</div>
   </div>
 </footer>
