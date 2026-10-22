@@ -563,6 +563,11 @@ function hgShowSummary(){
   document.getElementById('hg-final-total').textContent = hgState.words.length;
 }
 
+…
+You've accidentally pasted the end of hgResetToSetup() after the new hgPlayAgain() function. Those lines belong inside hgResetToSetup(), not after hgPlayAgain().
+
+Your code should be structured like this:
+
 function hgResetToSetup(){
   hgStopDashboardTimer();
 
@@ -592,6 +597,86 @@ function hgResetToSetup(){
   document.getElementById('hg-setup').style.display = 'block';
 }
 
+/* ============ PLAY AGAIN ============ */
+async function hgPlayAgain(){
+  const button = document.getElementById('hg-play-again-btn');
+  const note = document.getElementById('hg-summary-note');
+
+  if(button) button.disabled = true;
+
+  try{
+    if(hgLobby && window.LobbySupabase){
+      if(typeof window.LobbySupabase.restartLobbyGame !== 'function'){
+        throw new Error('Please update lobby.js before replaying.');
+      }
+
+      if(note) note.textContent = 'Restarting the game in the same room…';
+
+      const restartedLobby = await window.LobbySupabase.restartLobbyGame(hgLobby.id, {
+        words: hgState.words,
+        timeLimit: hgState.timeLimit
+      });
+
+      if(!restartedLobby){
+        throw new Error('Could not restart the room. Please try again.');
+      }
+
+      hgLobby = restartedLobby;
+      hgState.idx = 0;
+      hgState.score = 0;
+      hgState.guessed = [];
+      hgState.misses = 0;
+      hgState.roundEnded = false;
+      hgTimerExpiryHandled = false;
+
+      hgRoom.students.forEach(student => {
+        student.guessed = [];
+        student.misses = 0;
+        student.done = false;
+        student.won = false;
+      });
+
+      document.getElementById('hg-summary').style.display = 'none';
+      document.getElementById('hg-play').style.display = 'none';
+      document.getElementById('hg-room').style.display = 'none';
+      document.getElementById('hg-dashboard').style.display = 'block';
+      document.getElementById('hg-dash-word-total').textContent = hgState.words.length;
+
+      if(hgProgressChannel){
+        window.LobbySupabase.unsubscribe(hgProgressChannel);
+      }
+
+      hgProgressChannel = window.LobbySupabase.subscribeToProgress(hgLobby.id, row => {
+        if(!row || row.word_index !== hgState.idx) return;
+        hgApplyProgressRow(row);
+      });
+
+      hgLoadDashboardWord();
+
+      if(note) note.textContent = 'Same room, same code — your students can play again.';
+      return;
+    }
+
+    // Replay solo practice.
+    hgState.idx = 0;
+    hgState.score = 0;
+    hgState.guessed = [];
+    hgState.misses = 0;
+    hgState.roundEnded = false;
+
+    document.getElementById('hg-summary').style.display = 'none';
+    document.getElementById('hg-dashboard').style.display = 'none';
+    document.getElementById('hg-play').style.display = 'block';
+
+    hgLoadWord();
+
+  } catch(error){
+    console.error('[hgPlayAgain]', error);
+    if(note) note.textContent = error.message || 'Could not restart the game. Please try again.';
+  } finally {
+    if(button) button.disabled = false;
+  }
+}
 /* ============ CLASSROOM ROOM MODE ============ */
 const HG_STUDENT_COLORS = ['#00F3FF','#39FF14','#A855F7','#FFB020','#FF4B4B','#FFD23F'];
 
